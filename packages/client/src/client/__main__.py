@@ -1,6 +1,12 @@
-def main():
-    print("Hello from client!")
-    # Add your main function logic here
+# Client side
+import socket
 
-if __name__ == "__main__":
-    main()
+host = '127.0.0.1'
+port = 5000
+
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect((host, port))
+
+client_socket.send(b'Hello, server!')
+data = client_socket.recv(1024).decode()
+client_socket.close()
