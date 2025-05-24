@@ -2,7 +2,7 @@ import socket
 import threading
 import time
 import json
-from packages.tou.src.tou import BetterUDPSocket
+from tou import BetterUDPSocket
 
 HEARTBEAT_INTERVAL = 1
 MAX_MESSAGES = 20

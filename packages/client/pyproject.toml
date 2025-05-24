@@ -15,3 +15,6 @@ client = "client:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv]
+src = "src"

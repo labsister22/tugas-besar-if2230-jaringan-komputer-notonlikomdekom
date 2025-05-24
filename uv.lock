@@ -1,0 +1,25 @@
+version = 1
+revision = 2
+requires-python = ">=3.13"
+
+[manifest]
+members = [
+    "client",
+    "server",
+    "tou",
+]
+
+[[package]]
+name = "client"
+version = "0.1.0"
+source = { editable = "packages/client" }
+
+[[package]]
+name = "server"
+version = "0.1.0"
+source = { editable = "packages/server" }
+
+[[package]]
+name = "tou"
+version = "0.1.0"
+source = { editable = "packages/tou" }

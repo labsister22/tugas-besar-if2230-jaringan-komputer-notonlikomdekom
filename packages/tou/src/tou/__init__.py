@@ -100,8 +100,14 @@ class BetterUDPSocket:
             self.sock.settimeout(timeout)
             try:
                 while True:
-                    ack_data, _ = self.sock.recvfrom(HEADER_SIZE)
-                    ack_header = self._unpack_header(ack_data)
+                    # ack_data, _ = self.sock.recvfrom(HEADER_SIZE)
+                    ack_data, _ = self.sock.recvfrom(2048)  # large enough to fit full packet
+                    if len(ack_data) < HEADER_SIZE:
+                        continue
+                    # ack_header = self._unpack_header(ack_data)
+                    ack_header = self._unpack_header(ack_data[:HEADER_SIZE])
+                    if not (ack_header['flags'] & FLAG_ACK):
+                        continue
                     if ack_header['flags'] & FLAG_ACK:
                         # Cari segmen yang di-ACK
                         for i, (_, seg_seq, _) in enumerate(segments):
@@ -117,7 +123,10 @@ class BetterUDPSocket:
         # Tunggu FIN-ACK jika segmen terakhir FIN
         if segments and (segments[-1][2] & FLAG_FIN):
             while True:
-                finack_data, _ = self.sock.recvfrom(HEADER_SIZE)
+                # finack_data, _ = self.sock.recvfrom(HEADER_SIZE)
+                finack_data, _ = self.sock.recvfrom(2048)  # large enough to fit full packet
+                if len(finack_data) < HEADER_SIZE:
+                    continue
                 finack_header = self._unpack_header(finack_data)
                 if finack_header['flags'] & FLAG_FIN and finack_header['flags'] & FLAG_ACK:
                     break
@@ -130,6 +139,8 @@ class BetterUDPSocket:
         result = b''
         while not finished:
             segment, addr = self.sock.recvfrom(HEADER_SIZE + MAX_PAYLOAD_SIZE)
+            if len(segment) < HEADER_SIZE:
+                continue
             header = segment[:HEADER_SIZE]
             payload = segment[HEADER_SIZE:]
             header_info = self._unpack_header(header)
@@ -165,7 +176,8 @@ class BetterUDPSocket:
                 # Out of order, kirim ACK untuk expected_seq
                 ack_header = self._pack_header(FLAG_ACK, b'', seq=self.seq, ack=expected_seq)
                 self.sock.sendto(ack_header, addr)
-        return result
+        self.connected_addr = addr
+        return result, addr
 
     def connect(self, ip_address, port):
         # 3-way handshake: send SYN, wait SYN-ACK, send ACK
@@ -193,21 +205,44 @@ class BetterUDPSocket:
         self.is_server = True
         while True:
             data, addr = self.sock.recvfrom(HEADER_SIZE)
+            if len(data) < HEADER_SIZE:
+                print("Received malformed header, ignoring")
+                continue
             header_info = self._unpack_header(data)
             if header_info['flags'] & FLAG_SYN:
                 self.dst_port = header_info['src_port']
                 client_seq = header_info['seq']
                 self.ack = client_seq + 1
-                self.seq = random.randint(0, 2**32-1)  # random initial sequence number for server
-                # Send SYN+ACK
+                self.seq = random.randint(0, 2**32-1)
                 syn_ack_header = self._pack_header(FLAG_SYN | FLAG_ACK, b'', seq=self.seq, ack=self.ack)
                 self.sock.sendto(syn_ack_header, addr)
                 # Wait for ACK
                 data2, addr2 = self.sock.recvfrom(HEADER_SIZE)
+                if len(data2) < HEADER_SIZE:
+                    print("Received malformed ACK, ignoring")
+                    continue
                 header_info2 = self._unpack_header(data2)
                 if header_info2['flags'] & FLAG_ACK and addr == addr2 and header_info2['ack'] == self.seq + 1:
                     self.connected_addr = addr
                     break
+        # self.is_server = True
+        # while True:
+        #     data, addr = self.sock.recvfrom(HEADER_SIZE)
+        #     header_info = self._unpack_header(data)
+        #     if header_info['flags'] & FLAG_SYN:
+        #         self.dst_port = header_info['src_port']
+        #         client_seq = header_info['seq']
+        #         self.ack = client_seq + 1
+        #         self.seq = random.randint(0, 2**32-1)  # random initial sequence number for server
+        #         # Send SYN+ACK
+        #         syn_ack_header = self._pack_header(FLAG_SYN | FLAG_ACK, b'', seq=self.seq, ack=self.ack)
+        #         self.sock.sendto(syn_ack_header, addr)
+        #         # Wait for ACK
+        #         data2, addr2 = self.sock.recvfrom(HEADER_SIZE)
+        #         header_info2 = self._unpack_header(data2)
+        #         if header_info2['flags'] & FLAG_ACK and addr == addr2 and header_info2['ack'] == self.seq + 1:
+        #             self.connected_addr = addr
+        #             break
 
     # Add other methods as needed
 
