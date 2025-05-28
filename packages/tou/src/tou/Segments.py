@@ -115,7 +115,7 @@ class Segments:
         return header + self.payload
 
     @classmethod
-    def unpack(cls, data: bytes) -> 'Segments':
+    def unpack(cls, data):
         # Verify minimum data length
         header_size = struct.calcsize(cls.HEADER_FORMAT)
         if len(data) < header_size:
@@ -169,3 +169,4 @@ class Segments:
         # 5. Restore original checksum
         segments.checksum = original_checksum
         return segments
+

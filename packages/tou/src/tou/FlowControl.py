@@ -22,6 +22,7 @@ class FlowControl:
         self.received_segments: Dict[int, bytes] = {}
         self.expected_seq_num = 0
         self.last_activity = time.time()
+        self._retransmit_callback = None  # Initialize retransmit callback
 
     def _update_activity_time(self):
         """Update the last activity timestamp"""
@@ -30,6 +31,10 @@ class FlowControl:
     def _check_timeout(self) -> bool:
         """Check if operation has timed out"""
         return time.time() - self.last_activity > self.OPERATION_TIMEOUT
+
+    def set_retransmit_callback(self, callback):
+        """Set a callback to be called with (seq_num, data) for each segment to retransmit on timeout."""
+        self._retransmit_callback = callback
 
     def start_timer(self):
         """Start the retransmission timer"""
@@ -60,9 +65,16 @@ class FlowControl:
                         self.buffer[seq_num] = (data, current_time)
                         segments_to_retransmit.append((seq_num, data))
             
+            # Call retransmit callback for each segment
+            if hasattr(self, '_retransmit_callback') and segments_to_retransmit:
+                for seq_num, data in segments_to_retransmit:
+                    self._retransmit_callback(seq_num, data)
+            
             # Restart timer if there are unacknowledged segments
-            if segments_to_retransmit:
+            if self.base < self.next_seq_num:
                 self.start_timer()
+            else:
+                self.stop_timer()
             
             return segments_to_retransmit
 

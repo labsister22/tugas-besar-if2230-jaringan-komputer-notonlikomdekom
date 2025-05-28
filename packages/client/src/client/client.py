@@ -4,15 +4,16 @@ import threading
 import time
 from datetime import datetime
 from typing import List, Optional
-from tou import Connection, Segments
+from tou.Connection import Connection
+from tou.Segments import Segments
 
 class ChatClient:
     def __init__(self, host: str, port: int, display_name: str):
         self.host = host
         self.port = port
         self.display_name = display_name
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(('', 0))  # Bind to random available port
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(('', 0))  # Bind to random available port
         self.connection: Optional[Connection] = None
         self.running = False
         self.messages: List[str] = []
@@ -194,7 +195,7 @@ class ChatClient:
             self._setup_curses()
             
             # Initialize connection
-            self.connection = Connection(self.socket.getsockname(), self.socket)
+            self.connection = Connection(self.sock.getsockname(), self.sock)
             server_addr = (self.host, self.port)
             self.connection.connect(server_addr)
             
@@ -223,7 +224,6 @@ class ChatClient:
                 except Exception as e:
                     self._add_message(f"Connection error: {e}", is_system=True)
                     break
-                
         except Exception as e:
             if self.running:
                 self._add_message(f"Fatal error: {e}", is_system=True)
@@ -240,7 +240,7 @@ class ChatClient:
                 pass
         self._cleanup_curses()
 
-if __name__ == '__main__':
+def main():
     import argparse
     parser = argparse.ArgumentParser(description='Chat Room Client')
     parser.add_argument('--host', default='localhost', help='Server host')

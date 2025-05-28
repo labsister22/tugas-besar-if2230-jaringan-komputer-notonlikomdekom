@@ -1,9 +1,10 @@
 import socket
 import threading
 import time
+import random
 from enum import Enum, auto
-from tou import Segments
-from tou import FlowControl
+from tou.Segments import Segments
+from tou.FlowControl import FlowControl
 
 class ConnectionState(Enum):
     """Connection states for the TOU protocol"""
@@ -49,17 +50,21 @@ class Connection:
             
         # Wait for SYN
         while True:
-            data, addr = self.socket.recvfrom(Segments.MAX_HEADER_SIZE + Segments.MAX_PAYLOAD_SIZE)
             try:
-                Segments = Segments.unpack(data)
-                if Segments.flags & Segments.SYN_flag:
+                data, addr = self.socket.recvfrom(Segments.MAX_HEADER_SIZE + Segments.MAX_PAYLOAD_SIZE)
+            except BlockingIOError:
+                time.sleep(0.01)
+                continue
+            try:
+                segment = Segments.unpack(data)
+                if segment.flags & Segments.SYN_flag:
                     break
             except ValueError:
                 continue  # Ignore invalid Segments
                 
         self.remote_addr = addr
-        self.remote_seq_num = Segments.seq_num
-        self.local_seq_num = Segments.generate_initial_seq_num()
+        self.remote_seq_num = segment.seq_num
+        self.local_seq_num = random.randint(0, Segments.seq_max)
         
         # Send SYN-ACK
         syn_ack = Segments(
@@ -75,14 +80,17 @@ class Connection:
         
         # Wait for ACK
         while True:
-            data, addr = self.socket.recvfrom(Segments.MAX_HEADER_SIZE + Segments.MAX_PAYLOAD_SIZE)
+            try:
+                data, addr = self.socket.recvfrom(Segments.MAX_HEADER_SIZE + Segments.MAX_PAYLOAD_SIZE)
+            except BlockingIOError:
+                time.sleep(0.01)
+                continue
             if addr != self.remote_addr:
                 continue
-                
             try:
-                Segments = Segments.unpack(data)
-                if Segments.flags & Segments.ACK_flag and Segments.ack_num == self.local_seq_num + 1:
-                    self.remote_window = Segments.window
+                segment = Segments.unpack(data)
+                if segment.flags & Segments.ACK_flag and segment.ack_num == self.local_seq_num + 1:
+                    self.remote_window = segment.window
                     self.state = ConnectionState.ESTABLISHED
                     break
             except ValueError:
@@ -97,7 +105,7 @@ class Connection:
             raise RuntimeError("Connection must be closed before connecting")
             
         self.remote_addr = remote_addr
-        self.local_seq_num = Segments.generate_initial_seq_num()
+        self.local_seq_num = random.randint(0, Segments.seq_max)
         
         # Send SYN
         syn = Segments(
@@ -112,16 +120,19 @@ class Connection:
         
         # Wait for SYN-ACK
         while True:
-            data, addr = self.socket.recvfrom(Segments.MAX_HEADER_SIZE + Segments.MAX_PAYLOAD_SIZE)
+            try:
+                data, addr = self.socket.recvfrom(Segments.MAX_HEADER_SIZE + Segments.MAX_PAYLOAD_SIZE)
+            except BlockingIOError:
+                time.sleep(0.01)
+                continue
             if addr != self.remote_addr:
                 continue
-                
             try:
-                Segments = Segments.unpack(data)
-                if (Segments.flags & (Segments.SYN_flag | Segments.ACK_flag) and 
-                    Segments.ack_num == self.local_seq_num + 1):
-                    self.remote_seq_num = Segments.seq_num
-                    self.remote_window = Segments.window
+                segment = Segments.unpack(data)
+                if (segment.flags & (Segments.SYN_flag | Segments.ACK_flag) and 
+                    segment.ack_num == self.local_seq_num + 1):
+                    self.remote_seq_num = segment.seq_num
+                    self.remote_window = segment.window
                     break
             except ValueError:
                 continue  # Ignore invalid Segments
@@ -211,6 +222,9 @@ class Connection:
                 if Segments.flags & Segments.FIN_flag:
                     self._handle_fin(Segments)
                     
+            except BlockingIOError:
+                time.sleep(0.01)
+                continue
             except Exception as e:
                 print(f"Error in receive loop: {e}")
                 continue

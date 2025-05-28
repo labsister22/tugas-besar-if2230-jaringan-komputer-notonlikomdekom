@@ -6,7 +6,8 @@ from typing import Dict, List, Tuple, Optional
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'tou', 'src')))
-from tou import Connection, Segments
+from tou.Connection import Connection
+from tou.Segments import Segments
 
 class ChatServer:
     # Constants
@@ -26,6 +27,7 @@ class ChatServer:
     def start(self):
         """Start the chat server"""
         self.socket.bind((self.host, self.port))
+        self.socket.setblocking(False)  # Non-blocking mode
         self.running = True
         print(f"Server started on {self.host}:{self.port}")
 
@@ -34,17 +36,29 @@ class ChatServer:
         idle_checker.daemon = True
         idle_checker.start()
 
+        last_check = time.time()
+        TIMEOUT = 5  # seconds
+
         try:
             while self.running:
+                now = time.time()
                 try:
-                    # Set socket timeout to allow checking running flag
-                    self.socket.settimeout(1.0)
-                    data, addr = self.socket.recvfrom(4096)
+                    data, addr = self.socket.recvfrom(128)
                     self._handle_client_message(data, addr)
-                except socket.timeout:
-                    continue
+                    last_check = now  # Reset last_check on activity
+                except BlockingIOError:
+                    # No data available
+                    time.sleep(0.05)
                 except Exception as e:
+                    if isinstance(e, BlockingIOError):
+                        # Non-blocking socket: no data available, ignore
+                        time.sleep(0.05)
+                        continue
                     print(f"Error handling client: {e}")
+                # Manual timeout logic (if needed for other periodic tasks)
+                if now - last_check > TIMEOUT:
+                    # You can add any periodic timeout logic here
+                    last_check = now
         finally:
             self.socket.close()
 
@@ -112,6 +126,7 @@ class ChatServer:
             # Handle new connections
             if segment.flags & Segments.SYN_flag:
                 conn = Connection((self.host, self.port), self.socket)
+                conn.listen()  # Ensure the connection is in LISTEN state
                 conn.remote_addr = addr
                 conn.accept()
                 return
@@ -205,7 +220,7 @@ class ChatServer:
         with self.lock:
             return self.messages[-count:]
 
-if __name__ == '__main__':
+def main():
     import argparse
     parser = argparse.ArgumentParser(description='Chat Room Server')
     parser.add_argument('--host', default='0.0.0.0', help='Host to bind to')
