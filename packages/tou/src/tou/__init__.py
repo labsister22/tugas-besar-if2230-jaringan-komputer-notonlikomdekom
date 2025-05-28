@@ -225,24 +225,6 @@ class BetterUDPSocket:
                 if header_info2['flags'] & FLAG_ACK and addr == addr2 and header_info2['ack'] == self.seq + 1:
                     self.connected_addr = addr
                     break
-        # self.is_server = True
-        # while True:
-        #     data, addr = self.sock.recvfrom(HEADER_SIZE)
-        #     header_info = self._unpack_header(data)
-        #     if header_info['flags'] & FLAG_SYN:
-        #         self.dst_port = header_info['src_port']
-        #         client_seq = header_info['seq']
-        #         self.ack = client_seq + 1
-        #         self.seq = random.randint(0, 2**32-1)  # random initial sequence number for server
-        #         # Send SYN+ACK
-        #         syn_ack_header = self._pack_header(FLAG_SYN | FLAG_ACK, b'', seq=self.seq, ack=self.ack)
-        #         self.sock.sendto(syn_ack_header, addr)
-        #         # Wait for ACK
-        #         data2, addr2 = self.sock.recvfrom(HEADER_SIZE)
-        #         header_info2 = self._unpack_header(data2)
-        #         if header_info2['flags'] & FLAG_ACK and addr == addr2 and header_info2['ack'] == self.seq + 1:
-        #             self.connected_addr = addr
-        #             break
 
     # Add other methods as needed
 

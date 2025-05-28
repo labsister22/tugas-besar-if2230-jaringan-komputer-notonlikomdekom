@@ -1,75 +1,222 @@
+import socket
 import threading
 import time
-import json
-from tou import BetterUDPSocket
+from datetime import datetime
+from typing import Dict, List, Tuple, Optional
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'tou', 'src')))
+from tou import Connection, Segments
 
-HOST = '0.0.0.0'
-PORT = 41234
-HEARTBEAT_TIMEOUT = 4
-MAX_MESSAGES = 20
+class ChatServer:
+    # Constants
+    IDLE_TIMEOUT = 30  # seconds
+    SERVER_NAME = "SERVER"
+    ADMIN_PASSWORD = "admin123"  # You can change this or make it configurable
 
-users = {}  # (ip, port): {'display_name': str, 'last_seen': float}
-chat_log = []  # list of dict: {'display_name', 'timestamp', 'message'}
+    def __init__(self, host: str, port: int):
+        self.host = host
+        self.port = port
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.running = False
+        self.users: Dict[str, Dict] = {}  # ip:port -> {name, last_heartbeat, connection}
+        self.messages: List[Dict] = []  # List of {name, timestamp, message}
+        self.lock = threading.Lock()
 
-sock = BetterUDPSocket()
+    def start(self):
+        """Start the chat server"""
+        self.socket.bind((self.host, self.port))
+        self.running = True
+        print(f"Server started on {self.host}:{self.port}")
 
-def cleanup_inactive():
-    while True:
-        now = time.time()
-        inactive = [addr for addr, info in users.items() if now - info['last_seen'] > HEARTBEAT_TIMEOUT]
-        for addr in inactive:
-            print(f"[SERVER] Removing inactive user {users[addr]['display_name']} {addr}")
-            del users[addr]
-        time.sleep(5)
+        # Start idle user checker thread
+        idle_checker = threading.Thread(target=self._check_idle_users)
+        idle_checker.daemon = True
+        idle_checker.start()
 
-def handle_clients():
-    while True:
         try:
-            data, addr = sock.receive()
-        except Exception as e:
-            print(f"[ERROR] Receiving from {addr}: {e}")
-            continue
-        print(f"Receiving from {addr}")
-        try:
-            msg = json.loads(data.decode())
-        except Exception as e:
-            print(f"[ERROR] Failed to parse message from {addr}: {e}")
-            continue
+            while self.running:
+                try:
+                    # Set socket timeout to allow checking running flag
+                    self.socket.settimeout(1.0)
+                    data, addr = self.socket.recvfrom(4096)
+                    self._handle_client_message(data, addr)
+                except socket.timeout:
+                    continue
+                except Exception as e:
+                    print(f"Error handling client: {e}")
+        finally:
+            self.socket.close()
 
-        now = time.time()
-        print("receiving ", msg.get('type'))
+    def stop(self):
+        """Stop the chat server"""
+        self.running = False
+        # Notify all users that server is shutting down
+        self.broadcast_message("Server is shutting down...")
+        # Close all connections
+        with self.lock:
+            for user_info in self.users.values():
+                if 'connection' in user_info:
+                    user_info['connection'].close()
+            self.users.clear()
 
-        # Register/update user
-        if 'display_name' in msg:
-            users[addr] = {'display_name': msg['display_name'], 'last_seen': now}
-        elif addr not in users:
-            print(f"[WARN] Message from unknown client {addr}")
-            continue
-        else:
-            users[addr]['last_seen'] = now
+    def _check_idle_users(self):
+        """Background thread to check for idle users"""
+        while self.running:
+            current_time = time.time()
+            to_remove = []
 
-        if msg.get('type') == 'heartbeat':
-            last_msgs = chat_log[-MAX_MESSAGES:]
-            sock.connected_addr = addr
-            # sock.send(json.dumps({'type': 'chat', 'messages': last_msgs}).encode(), window_size=4)
+            with self.lock:
+                for addr, user_info in self.users.items():
+                    if current_time - user_info['last_heartbeat'] > self.IDLE_TIMEOUT:
+                        to_remove.append((addr, user_info['name']))
 
-        elif msg.get('type') == 'chat':
-            entry = {
-                'display_name': users[addr]['display_name'],
-                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(now)),
-                'message': msg['message']
+                for addr, name in to_remove:
+                    self._remove_user(addr)
+                    self.add_system_message(f"{name} was AFK and has been kicked from the chat!")
+
+            time.sleep(1)
+
+    def _remove_user(self, addr: Tuple[str, int]):
+        """Remove a user from the chat room"""
+        with self.lock:
+            if addr in self.users:
+                user_info = self.users[addr]
+                if 'connection' in user_info:
+                    user_info['connection'].close()
+                del self.users[addr]
+
+    def _add_user(self, addr: Tuple[str, int], name: str, connection: Connection):
+        """Add a new user to the chat room"""
+        with self.lock:
+            if name.upper() == self.SERVER_NAME:
+                return False
+            
+            # Check if name is already taken
+            for user in self.users.values():
+                if user['name'].lower() == name.lower():
+                    return False
+
+            self.users[addr] = {
+                'name': name,
+                'last_heartbeat': time.time(),
+                'connection': connection
             }
-            chat_log.append(entry)
-            print(f"[CHAT] {entry['display_name']}: {entry['message']}")
-            # Broadcast to all users
-            for uaddr in users:
-                sock.connected_addr = uaddr
-                sock.send(json.dumps({'type': 'chat', 'messages': [entry]}).encode(), window_size=4)
+            return True
 
-def main():
-    sock.sock.bind((HOST, PORT))
-    print(f"[SERVER] Listening on {HOST}:{PORT}")
-    sock.listen()
-    print("[SERVER] Ready to accept clients!")
-    threading.Thread(target=cleanup_inactive, daemon=True).start()
-    handle_clients()
+    def _handle_client_message(self, data: bytes, addr: Tuple[str, int]):
+        """Handle incoming client messages"""
+        try:
+            segment = Segments.unpack(data)
+            
+            # Handle new connections
+            if segment.flags & Segments.SYN_flag:
+                conn = Connection((self.host, self.port), self.socket)
+                conn.remote_addr = addr
+                conn.accept()
+                return
+
+            # Parse message
+            message = segment.payload.decode('utf-8')
+            
+            # Handle heartbeat
+            if message.startswith('!heartbeat'):
+                if addr in self.users:
+                    self.users[addr]['last_heartbeat'] = time.time()
+                return
+
+            # Handle commands
+            if message.startswith('!'):
+                self._handle_command(message, addr)
+                return
+
+            # Regular message
+            if addr in self.users:
+                user_info = self.users[addr]
+                self.add_message(user_info['name'], message)
+                user_info['last_heartbeat'] = time.time()
+
+        except Exception as e:
+            print(f"Error processing message from {addr}: {e}")
+
+    def _handle_command(self, message: str, addr: Tuple[str, int]):
+        """Handle special commands"""
+        cmd_parts = message.split()
+        command = cmd_parts[0].lower()
+
+        if command == '!disconnect':
+            if addr in self.users:
+                name = self.users[addr]['name']
+                self._remove_user(addr)
+                self.add_system_message(f"{name} has disconnected!")
+
+        elif command == '!kill' and len(cmd_parts) > 1:
+            if cmd_parts[1] == self.ADMIN_PASSWORD:
+                self.add_system_message("Server shutdown initiated by admin")
+                self.stop()
+
+        elif command == '!change' and len(cmd_parts) > 1:
+            new_name = cmd_parts[1]
+            if addr in self.users and new_name.upper() != self.SERVER_NAME:
+                old_name = self.users[addr]['name']
+                # Check if new name is available
+                name_available = True
+                for user in self.users.values():
+                    if user['name'].lower() == new_name.lower():
+                        name_available = False
+                        break
+                
+                if name_available:
+                    self.users[addr]['name'] = new_name
+                    self.add_system_message(f"{old_name} changed their name to {new_name}")
+
+    def add_message(self, name: str, message: str):
+        """Add a message to the chat room"""
+        timestamp = datetime.now().strftime("%I:%M %p")
+        with self.lock:
+            self.messages.append({
+                'name': name,
+                'timestamp': timestamp,
+                'message': message
+            })
+            self._broadcast_to_all_users(name, timestamp, message)
+
+    def add_system_message(self, message: str):
+        """Add a system message to the chat room"""
+        self.add_message(self.SERVER_NAME, message)
+
+    def broadcast_message(self, message: str):
+        """Broadcast a message to all connected users"""
+        self.add_system_message(message)
+
+    def _broadcast_to_all_users(self, name: str, timestamp: str, message: str):
+        """Send a message to all connected users"""
+        formatted_msg = f"{name} [{timestamp}]: {message}"
+        with self.lock:
+            for user_info in self.users.values():
+                if 'connection' in user_info:
+                    try:
+                        user_info['connection'].send(formatted_msg.encode('utf-8'))
+                    except:
+                        pass  # Connection might be closed or in error state
+
+    def get_recent_messages(self, count: int = 20) -> List[Dict]:
+        """Get the most recent messages"""
+        with self.lock:
+            return self.messages[-count:]
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Chat Room Server')
+    parser.add_argument('--host', default='0.0.0.0', help='Host to bind to')
+    parser.add_argument('--port', type=int, default=12345, help='Port to bind to')
+    parser.add_argument('--password', default='admin123', help='Admin password for !kill command')
+    
+    args = parser.parse_args()
+    server = ChatServer(args.host, args.port)
+    server.ADMIN_PASSWORD = args.password
+    
+    try:
+        server.start()
+    except KeyboardInterrupt:
+        server.stop()
