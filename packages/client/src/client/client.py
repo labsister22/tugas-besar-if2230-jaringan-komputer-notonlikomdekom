@@ -28,7 +28,7 @@ class ChatClient:
         curses.cbreak()  # React to keys instantly
         self.screen.keypad(True)  # Enable keypad mode
         curses.start_color()
-        
+
         # Initialize color pairs
         curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)  # For online users
         curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # For system messages
@@ -36,18 +36,18 @@ class ChatClient:
 
         # Get screen dimensions
         self.max_y, self.max_x = self.screen.getmaxyx()
-        
+
         # Create windows
         self.chat_win = curses.newwin(self.max_y - 3, self.max_x, 0, 0)
         self.input_win = curses.newwin(3, self.max_x, self.max_y - 3, 0)
-        
+
         # Enable scrolling for chat window
         self.chat_win.scrollok(True)
-        
+
         # Draw borders
         self.chat_win.box()
         self.input_win.box()
-        
+
         # Initial refresh
         self.chat_win.refresh()
         self.input_win.refresh()
@@ -75,7 +75,7 @@ class ChatClient:
         while self.running:
             try:
                 key = self.input_win.getch()
-                
+
                 if key == ord('\n'):  # Enter key
                     if self.input_buffer:
                         # Handle commands
@@ -84,13 +84,13 @@ class ChatClient:
                         else:
                             # Send regular message
                             self._send_message(self.input_buffer)
-                        
+
                         # Clear input buffer
                         self.input_buffer = ""
                         self.input_win.clear()
                         self.input_win.box()
                         self.input_win.refresh()
-                
+
                 elif key == curses.KEY_BACKSPACE or key == 127:  # Backspace
                     if self.input_buffer:
                         self.input_buffer = self.input_buffer[:-1]
@@ -98,7 +98,7 @@ class ChatClient:
                         self.input_win.box()
                         self.input_win.addstr(1, 1, self.input_buffer)
                         self.input_win.refresh()
-                
+
                 elif key != -1 and 32 <= key <= 126:  # Printable characters
                     if len(self.input_buffer) < self.max_x - 4:  # Leave space for borders
                         self.input_buffer += chr(key)
@@ -114,37 +114,37 @@ class ChatClient:
             try:
                 # Calculate available space
                 max_lines = self.max_y - 5  # Account for borders and input area
-                
+
                 # Add timestamp if not a system message
                 if not is_system:
                     timestamp = datetime.now().strftime("%I:%M %p")
                     message = f"[{timestamp}] {message}"
-                
+
                 # Split long messages
                 lines = []
                 while len(message) > self.max_x - 4:
                     lines.append(message[:self.max_x - 4])
                     message = message[self.max_x - 4:]
                 lines.append(message)
-                
+
                 # Add lines to messages list
                 self.messages.extend(lines)
-                
+
                 # Keep only last max_lines messages
                 if len(self.messages) > max_lines:
                     self.messages = self.messages[-max_lines:]
-                
+
                 # Redraw chat window
                 self.chat_win.clear()
                 self.chat_win.box()
                 self._draw_header()
-                
+
                 line_num = 2  # Start after header
                 for msg in self.messages:
                     color = curses.color_pair(2 if is_system else 3)
                     self.chat_win.addstr(line_num, 1, msg, color)
                     line_num += 1
-                
+
                 self.chat_win.refresh()
 
             except Exception as e:
@@ -192,16 +192,16 @@ class ChatClient:
         """Start the chat client"""
         try:
             # Setup curses
-            self._setup_curses()
-            
+            # self._setup_curses()
+
             # Initialize connection
             self.connection = Connection(self.sock.getsockname(), self.sock)
             server_addr = (self.host, self.port)
             self.connection.connect(server_addr)
-            
+
             # Start client
             self.running = True
-            
+
             # Start background threads
             input_thread = threading.Thread(target=self._handle_user_input)
             heartbeat_thread = threading.Thread(target=self._send_heartbeat)
@@ -209,10 +209,10 @@ class ChatClient:
             heartbeat_thread.daemon = True
             input_thread.start()
             heartbeat_thread.start()
-            
+
             # Show welcome message
             self._add_message(f"Connected to chat room as {self.display_name}", is_system=True)
-            
+
             # Main receive loop
             while self.running:
                 try:
@@ -246,9 +246,9 @@ def main():
     parser.add_argument('--host', default='localhost', help='Server host')
     parser.add_argument('--port', type=int, default=12345, help='Server port')
     parser.add_argument('--name', default='Anonymous', help='Display name')
-    
+
     args = parser.parse_args()
-    
+
     client = ChatClient(args.host, args.port, args.name)
     try:
         client.start()

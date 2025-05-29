@@ -55,28 +55,67 @@ class FlowControl:
         with self.lock:
             current_time = time.time()
             segments_to_retransmit = []
-            
-            # Check each segment in the window for timeout
-            for seq_num in range(self.base, self.next_seq_num):
-                if seq_num in self.buffer:
-                    data, send_time = self.buffer[seq_num]
-                    if current_time - send_time > self.RETRANSMISSION_TIMEOUT:
-                        # Update timestamp and mark for retransmission
-                        self.buffer[seq_num] = (data, current_time)
-                        segments_to_retransmit.append((seq_num, data))
-            
-            # Call retransmit callback for each segment
-            if hasattr(self, '_retransmit_callback') and segments_to_retransmit:
-                for seq_num, data in segments_to_retransmit:
-                    self._retransmit_callback(seq_num, data)
-            
-            # Restart timer if there are unacknowledged segments
-            if self.base < self.next_seq_num:
-                self.start_timer()
+
+            # VVV CORRECTED ITERATION LOGIC VVV
+            # Iterate over the sequence numbers of segments currently in the buffer
+            # that are unacknowledged (i.e., seq_num >= self.base).
+            # Sort them to typically retransmit older ones first, though any in the
+            # timed-out window might need retransmission depending on strategy.
+
+            # The timer signifies that the segment at self.base (oldest unacked) is suspected lost.
+            # A simple strategy is to retransmit the segment at self.base if it's still in the buffer.
+            # A more aggressive (Go-Back-N like for timeout) strategy might retransmit all from self.base.
+
+            timed_out_segment_found = False
+            if self.base in self.buffer:
+                data, send_time = self.buffer[self.base]
+                # Check if this specific segment's effective send_time warrants a timeout
+                # The timer itself is for RETRANSMISSION_TIMEOUT based on when it was started (for self.base)
+                print(f"FlowControl: Timeout event. Checking segment at base: Seq={self.base}.")
+                # Update its timestamp and mark for retransmission
+                self.buffer[self.base] = (data, current_time)
+                segments_to_retransmit.append((self.base, data))
+                timed_out_segment_found = True
+            # else: Segment at self.base was ACKed and removed from buffer,
+            # but timer fired. This could happen if ACKs are processed and base advances
+            # just before timeout handler runs. Or base was advanced beyond next_seq_num.
+
+            # Optional: More aggressive retransmission (retransmit all outstanding)
+            # This is more like what the original range() loop might have intended if seq nums were segment indices
+            # If you want to retransmit more than just self.base on a timeout:
+            # if not timed_out_segment_found: # Only if self.base wasn't found (shouldn't happen if timer is for self.base)
+            #     sorted_buffered_seq_nums = sorted(self.buffer.keys())
+            #     for seq_num_key in sorted_buffered_seq_nums:
+            #         if seq_num_key >= self.base: # Unacknowledged
+            #             data, send_time = self.buffer[seq_num_key]
+            #             # No individual timeout check here, as the main timer fired
+            #             self.buffer[seq_num_key] = (data, current_time)
+            #             segments_to_retransmit.append((seq_num_key, data))
+            #             print(f"FlowControl: Adding Seq={seq_num_key} to retransmit list due to general timeout.")
+
+            if hasattr(self, '_retransmit_callback') and self._retransmit_callback is not None and segments_to_retransmit:
+                print(f"FlowControl: Retransmitting {len(segments_to_retransmit)} segment(s).")
+                for seq_num_to_retransmit, data_to_retransmit in segments_to_retransmit:
+                    # seq_num_to_retransmit here should be the *actual large sequence number*
+                    self._retransmit_callback(seq_num_to_retransmit, data_to_retransmit)
+
+            # Restart timer if there are still unacknowledged segments
+            # self.base should point to the oldest unacknowledged segment's sequence number.
+            # self.next_seq_num should point to the sequence number for the *next new segment to send*.
+            # This logic for restarting timer is crucial and depends on consistent view of base and next_seq_num
+
+            active_segments_in_buffer = False
+            for seq_in_buf in self.buffer.keys():
+                if seq_in_buf >= self.base:
+                    active_segments_in_buffer = True
+                    break
+
+            if active_segments_in_buffer: # If there are segments >= base in buffer
+                self.start_timer() # Restart timer for the (potentially new) self.base
             else:
-                self.stop_timer()
-            
-            return segments_to_retransmit
+                self.stop_timer() # No unacknowledged data left that we know of
+
+            # return segments_to_retransmit # Not used by threading.Timer
 
     def can_send(self) -> bool:
         """Check if we can send more segments"""
@@ -85,7 +124,7 @@ class FlowControl:
     def send(self, data: bytes, sequence_num: Optional[int] = None) -> Optional[bytes]:
         """Send data with timeout handling"""
         start_time = time.time()
-        
+
         while True:
             with self.lock:
                 if self._check_timeout():
@@ -97,7 +136,7 @@ class FlowControl:
 
                 seq_num = sequence_num if sequence_num is not None else self.next_seq_num
                 self.buffer[seq_num] = (data, time.time())
-                
+
                 if seq_num == self.base:
                     self.start_timer()
 
@@ -134,7 +173,7 @@ class FlowControl:
     def receive(self, data: bytes, sequence_num: int) -> Optional[bytes]:
         """Receive data with timeout handling"""
         start_time = time.time()
-        
+
         while True:
             if time.time() - start_time > self.OPERATION_TIMEOUT:
                 raise TimeoutError("Receive operation timed out")
