@@ -56,7 +56,7 @@ class Host:
         '''Listens to incoming connection requests and returns a HostConnection object when a connection has been established'''
 
         if self.state != Host.State.LISTENING:
-            raise RuntimeError("Host already closed")
+            return None
 
         with self._queued_connections_lock:
             if self._queued_connections:
@@ -84,11 +84,9 @@ class Host:
             sleep(self.resend_delay)
 
             try:
-                print("try to receive")
                 data, addr = self._socket.recvfrom(SegmentHeader.SIZE + Segment.MAX_SIZE)
                 if not data:
                     break
-                print("rrrrrrrrrrrrrrrrrrrrrrrreceived", addr)
             except socket.error as e:
                 if e.errno == socket.EWOULDBLOCK:
                     continue
@@ -106,7 +104,6 @@ class Host:
             with self._queued_connections_lock:
                 for connection in self._listened_connections:
                     if connection.remote_addr == addr:
-                        print("BBBBBBBBBBBBBBBBBBBBBBBBB", len(data))
                         connection._internal_recvfrom(data)
                         dispatched = True
                         break
@@ -176,7 +173,6 @@ class Host:
     def _internal_sendto(self, ip_addr: str, port: int, data: bytes):
         '''Sends raw UDP data to a specified ip address and port, used by host connections to send data to client'''
 
-        print("CCCCCCCCCCCCCCCCCCCCC", ip_addr, port)
         self._socket.sendto(data, (ip_addr, port))
 
     def _internal_disconnect(self, connection: HostConnection):

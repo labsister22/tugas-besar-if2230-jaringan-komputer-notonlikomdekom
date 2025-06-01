@@ -56,7 +56,6 @@ class ClientConnection(Connection):
         self._last_ack_time = time()
         while (time() - self._last_ack_time <= self.timeout):
             # 1. Send SYN
-            print("sending SYN")
             self._highest_sent_seq = Segment.generate_random_syn()
 
             syn_segment = Segment(
@@ -72,24 +71,19 @@ class ClientConnection(Connection):
             self._socket.send(syn_segment.pack())
 
             # 2. Wait for SYN ACK
-            print("waitin SYN ACK")
             reply = self._internal_recv(SegmentHeader.SIZE)
-            print("received packet")
 
             synack_segment = Segment.unpack(reply)
 
             self._highest_received_ack = synack_segment.header.ack_num
             self._highest_accepted_seq = synack_segment.header.seq_num
-            self._outgoing_window_size = synack_segment.header.window
-
-            print("OUTGOING WINDOW SIZE: ", self._outgoing_window_size)
+            self.outgoing_window_size = synack_segment.header.window
 
             syn_valid = synack_segment.header.flags & SegmentHeader.SYN_FLAG
             ack_valid = synack_segment.header.flags & SegmentHeader.ACK_FLAG
             synack_valid = syn_valid and ack_valid
 
             if not (synack_valid and self._highest_received_ack == self._highest_sent_seq + 1):
-                print("not SYN ACK")
                 # retry handshake
                 sleep(self.resend_delay)
                 continue

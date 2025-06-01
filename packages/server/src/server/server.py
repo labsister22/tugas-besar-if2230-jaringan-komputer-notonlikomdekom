@@ -42,11 +42,11 @@ class ChatServer:
             new_connection = self._host.listen()
             while new_connection:
                 self._unnamed_connections.append(ChatServer.Connection(new_connection))
+                print("New connection found")
                 new_connection = self._host.listen()
 
             # Process open but unnamed connections
             for connection in self._unnamed_connections:
-                print(-1)
                 if connection.msg_len == 0:
                     buffer = connection.connection.recv(0, 4 - len(connection.buffer))
 
@@ -54,21 +54,20 @@ class ChatServer:
                         connection.buffer += buffer
 
                         if len(connection.buffer) == 4:
-                            connection.msg_len = struct.unpack("I", connection.buffer)
+                            connection.msg_len = int.from_bytes(buffer, 'little')
                             connection.buffer = b''
                         else:
                             # msg_len is still incomplete, do not process any further
                             continue
-                    elif connection.buffer and time.time() - connection.last_seen < self.disconnect_timeout:
+                    elif connection.buffer and time.time() - connection.last_seen > self.disconnect_timeout:
                         self._unnamed_connections.remove(connection)
                         # disconnect because stopped sending message mid stream
                         continue
-                    elif time.time() - connection.last_seen < self.idle_timeout:
+                    elif time.time() - connection.last_seen > self.idle_timeout:
                         self._unnamed_connections.remove(connection)
                         # disconnect for being idle for too long
                         continue
 
-                print(0)
                 if len(connection.buffer) < connection.msg_len:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
                     if buffer:
@@ -81,10 +80,9 @@ class ChatServer:
                 # Process complete message
                 if len(connection.buffer) == connection.msg_len:
                     message = connection.buffer.decode("utf-8")
-                    print("1", message)
                     if message.startswith("!change"):
-                        print("2", message)
                         # process name change command
+                        print("User joined with name")
                         pass
 
                     connection.msg_len = 0
@@ -138,7 +136,7 @@ class ChatServer:
                         connection.username = new_name
                         # process name change command
                     if message == "!heartbeat":
-
+                        print("heartbeat received")
                         # process heartbeat
                         # echo heartbeat back to client to inform that the server is still open
                         pass
@@ -167,9 +165,9 @@ def main():
 
     server = ChatServer(args.host, args.port, 30, 60)
     try:
-        server.start();
+        server.start()
     except KeyboardInterrupt:
-        server.stop();
+        server.stop()
 
 
 if __name__ == "__main__":

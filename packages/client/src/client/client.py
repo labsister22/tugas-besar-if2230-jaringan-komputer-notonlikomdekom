@@ -29,25 +29,25 @@ class ChatClient:
             #     resend_delay=0.1,
             #     timeout=1.0,
             # )
+            print("connecting")
             self.connection = ClientConnection(
                 self.host,
                 self.port
             )
     # def __init__(self, ip_addr: str, port: int, window_size: int = 4096, resend_delay: float = 0.1, timeout: float = 1):
-            print("connecting")
-            self.connection._connect()
             print("finish connecting")
             self.running = True
             new_name = "l4mbads"
-            self.connection.send(f"!change {new_name}".encode("utf-8"))
+            msg = f"!change {new_name}".encode("utf-8")
+            self.connection.send(len(msg).to_bytes(4, 'little') + msg)
             # self.connection._socket.send("xxxx")
 
             # Start background threads
             # threading.Thread(target=self._receive_messages, daemon=True).start()
-            # threading.Thread(target=self._send_heartbeat, daemon=True).start()
+            threading.Thread(target=self._send_heartbeat).start()
 
             print(f"Connected to {self.host}:{self.port} as {self.display_name}")
-            # self._handle_user_input()
+            self._handle_user_input()
 
         except Exception as e:
             print(f"Error: {e}")
@@ -78,7 +78,7 @@ class ChatClient:
         """Send periodic heartbeat to the server."""
         while self.running:
             try:
-                self.connection.send(b"!heartbeat")
+                self.connection.send(len(b"!heartbeat").to_bytes(4, 'little') + b'!heartbeat')
                 time.sleep(10)
             except Exception as e:
                 print(f"Error sending heartbeat: {e}")
