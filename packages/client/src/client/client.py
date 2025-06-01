@@ -1,13 +1,13 @@
+import curses
 import threading
 import time
-import curses
 from datetime import datetime
 from typing import Optional
 from tou.connection import Connection
 from tou.client_connection import ClientConnection
 
 
-class ChatClient:
+class CursesChatClient:
     def __init__(self, host: str, port: int, display_name: str):
         self.host = host
         self.port = port
@@ -15,102 +15,131 @@ class ChatClient:
         self.connection: Optional[Connection] = None
         self.running = False
 
+        self.messages: list[str] = []
+        self.lock = threading.Lock()
+
     def start(self):
-        """Start the chat client."""
         try:
-            print("connecting")
-            self.connection = ClientConnection(
-                self.host,
-                self.port
-            )
-    
-            print("finish connecting")
+            self.connection = ClientConnection(self.host, self.port)
             self.running = True
-            new_name = "l4mbads"
-            msg = f"!change {new_name}".encode("utf-8")
+
+            # Send display name change command
+            msg = f"!change {self.display_name}".encode("utf-8")
             self.connection.send(len(msg).to_bytes(4, 'little') + msg)
-            
 
             # Start background threads
-            # threading.Thread(target=self._receive_messages).start()
-            threading.Thread(target=self._send_heartbeat).start()
+            threading.Thread(target=self._receive_messages, daemon=True).start()
+            threading.Thread(target=self._send_heartbeat, daemon=True).start()
 
-            print(f"Connected to {self.host}:{self.port} as {self.display_name}")
-            self._handle_user_input()
+            # Launch curses UI
+            curses.wrapper(self._run_curses_ui)
 
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Connection error: {e}")
         finally:
             self.stop()
 
     def stop(self):
-        """Stop the chat client."""
         self.running = False
         if self.connection:
             self.connection.close()
-        print("Disconnected from the server.")
 
     def _receive_messages(self):
-        """Receive messages from the server."""
         while self.running:
             try:
-                print("sending heartbeat")
-                data = self.connection.recv(min_size=1, max_size=4096)
-                if data:
-                    message = data.decode("utf-8")
-                    print(message)
+                # First read length
+                length_bytes = self.connection.recv(0, 4)
+                if not length_bytes:
+                    continue
+                length = int.from_bytes(length_bytes, 'little')
+
+                # Then read full message
+                message_bytes = self.connection.recv(0, length)
+                if not message_bytes:
+                    continue
+                message = message_bytes.decode("utf-8")
+
+                if message.strip() == "!heartbeat":
+                    continue  # Ignore heartbeat messages in UI
+
+                with self.lock:
+                    self.messages.append(message)
+
             except Exception as e:
-                print(f"Error receiving message: {e}")
+                with self.lock:
+                    self.messages.append(f"[ERROR] {e}")
                 self.stop()
 
     def _send_heartbeat(self):
-        """Send periodic heartbeat to the server."""
         while self.running:
             try:
-                self.connection.send(len(b"!heartbeat").to_bytes(4, 'little') + b'!heartbeat')
+                msg = b"!heartbeat"
+                self.connection.send(len(msg).to_bytes(4, 'little') + msg)
                 time.sleep(1)
-            except Exception as e:
-                print(f"Error sending heartbeat: {e}")
+            except:
                 self.stop()
 
-    def _handle_user_input(self):
-        """Handle user input."""
-        time.sleep(9999)
+    def _run_curses_ui(self, stdscr):
+        curses.curs_set(1)
+        stdscr.nodelay(True)
+        stdscr.clear()
+
+        max_y, max_x = stdscr.getmaxyx()
+
+        input_win = curses.newwin(1, max_x, max_y - 1, 0)
+        chat_win = curses.newwin(max_y - 1, max_x, 0, 0)
+
+        input_buffer = ""
+
         while self.running:
-            try:
-                message = input()
-                if message.startswith("!"):
-                    self._handle_command(message)
-                else:
-                    self.connection.send(f"{self.display_name}: {message}".encode("utf-8"))
-            except Exception as e:
-                print(f"Error sending message: {e}")
-                self.stop()
+            chat_win.clear()
 
-    def _handle_command(self, command: str):
-        """Handle special commands."""
-        if command == "!disconnect":
-            self.stop()
-        elif command.startswith("!change "):
-            new_name = command.split(" ", 1)[1].strip()
-            if new_name:
-                self.display_name = new_name
-                self.connection.send(f"!change {new_name}".encode("utf-8"))
-        else:
-            print(f"Unknown command: {command}")
+            # Display messages
+            with self.lock:
+                displayed_messages = self.messages[-(max_y - 2):]
+                for i, msg in enumerate(displayed_messages):
+                    chat_win.addstr(i, 0, msg[:max_x - 1])
+
+            chat_win.refresh()
+
+            # Handle user input
+            input_win.clear()
+            input_win.addstr(0, 0, "> " + input_buffer)
+            input_win.refresh()
+
+            c = input_win.getch()
+            if c == curses.KEY_BACKSPACE or c == 127:
+                input_buffer = input_buffer[:-1]
+            elif c in (curses.KEY_ENTER, 10, 13):
+                message = input_buffer.strip()
+                if message:
+                    if message == "!disconnect":
+                        self.stop()
+                        break
+                    elif message.startswith("!change "):
+                        self.display_name = message.split(" ", 1)[1]
+                    data = message.encode("utf-8")
+                    try:
+                        self.connection.send(len(data).to_bytes(4, 'little') + data)
+                    except:
+                        self.stop()
+                        break
+                input_buffer = ""
+            elif c >= 32 and c <= 126:
+                input_buffer += chr(c)
 
 
-def main() -> None:
+def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Chat Room Client")
+    parser = argparse.ArgumentParser(description="Curses Chat Client")
     parser.add_argument("--host", default="localhost", help="Server host")
     parser.add_argument("--port", type=int, default=12345, help="Server port")
     parser.add_argument("--name", default="Anonymous", help="Display name")
 
     args = parser.parse_args()
 
-    client = ChatClient(args.host, args.port, args.name)
+    client = CursesChatClient(args.host, args.port, args.name)
     try:
         client.start()
     except KeyboardInterrupt:
