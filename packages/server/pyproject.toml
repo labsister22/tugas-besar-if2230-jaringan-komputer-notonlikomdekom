@@ -7,7 +7,7 @@ authors = [
     { name = "filbert251", email = "19623251@std.stei.itb.ac.id" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = ["tou"]
 
 [project.scripts]
 server = "server:main"

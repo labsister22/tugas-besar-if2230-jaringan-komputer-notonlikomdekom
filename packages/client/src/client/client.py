@@ -169,6 +169,7 @@ class ChatClient:
         while self.running:
             try:
                 if self.connection and time.time() - self.last_heartbeat >= 1.0:
+                    print("Sending heartbeat!")
                     self.connection.send(b"!heartbeat")
                     self.last_heartbeat = time.time()
             except Exception as e:

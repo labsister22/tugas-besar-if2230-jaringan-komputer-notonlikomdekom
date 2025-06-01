@@ -24,6 +24,12 @@ requires-dist = [{ name = "windows-curses", specifier = ">=2.3.1" }]
 name = "server"
 version = "0.1.0"
 source = { editable = "packages/server" }
+dependencies = [
+    { name = "tou" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "tou", editable = "packages/tou" }]
 
 [[package]]
 name = "tou"
