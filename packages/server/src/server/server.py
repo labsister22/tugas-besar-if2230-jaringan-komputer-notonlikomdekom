@@ -29,7 +29,7 @@ class ChatServer:
         self._host: Host | None = None
         self._connections: list[ChatServer.Connection] = []
         self._unnamed_connections: list[ChatServer.Connection] = []
-        
+
 
     def start(self):
         '''Starts server instance'''
@@ -52,7 +52,7 @@ class ChatServer:
                     if buffer:
                         connection.buffer += buffer
 
-                        if len(connection.buffer) == 4: 
+                        if len(connection.buffer) == 4:
                             connection.msg_len = struct.unpack("I", connection.buffer)
                             connection.buffer = b''
                         else:
@@ -66,7 +66,7 @@ class ChatServer:
                         self._unnamed_connections.remove(connection)
                         # disconnect for being idle for too long
                         continue
-                
+
                 if len(connection.buffer) < connection.msg_len:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
                     if buffer:
@@ -75,17 +75,17 @@ class ChatServer:
                         self._unnamed_connections.remove(connection)
                         # disconnect because stopped sending message mid stream
                         continue
-                
+
                 # Process complete message
                 if len(connection.buffer) == connection.msg_len:
                     message = connection.buffer.decode("utf-8")
                     if message.startswith("!change"):
                         # process name change command
                         pass
-                    
+
                     connection.msg_len = 0
                     connection.buffer = b''
-            
+
             # Process current open connections
             for connection in self._connections:
                 if connection.msg_len == 0:
@@ -94,7 +94,7 @@ class ChatServer:
                     if buffer:
                         connection.buffer += buffer
 
-                        if len(connection.buffer) == 4: 
+                        if len(connection.buffer) == 4:
                             connection.msg_len = struct.unpack("I", connection.buffer)
                             connection.buffer = b''
                         else:
@@ -108,7 +108,7 @@ class ChatServer:
                         # disconnect for being idle for too long
                         self._connections.remove(connection)
                         continue
-                
+
                 if len(connection.buffer) < connection.msg_len:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
                     if buffer:
@@ -117,7 +117,7 @@ class ChatServer:
                         # disconnect because stopped sending message mid stream
                         self._connections.remove(connection)
                         continue
-                
+
                 # Process complete message
                 if len(connection.buffer) == connection.msg_len:
                     message = connection.buffer.decode("utf-8")
@@ -133,7 +133,7 @@ class ChatServer:
                         connection.username = new_name
                         # process name change command
                     if message == "!heartbeat":
-                        
+
                         # process heartbeat
                         # echo heartbeat back to client to inform that the server is still open
                         pass
@@ -143,9 +143,18 @@ class ChatServer:
                             if other is not connection:
                                 msg = f"[{connection.username}] {message}".encode("utf-8")
                                 other.connection.send(struct.pack("<I", len(msg)) + msg)
-                    
+
                     connection.msg_len = 0
                     connection.buffer = b''
+
+    def stop(self):
+        """Stop the chat server"""
+        if self._host:
+            self._host.close()
+        self._connections.clear()
+        self._unnamed_connections.clear()
+        self._host.state = Host.State.CLOSED
+        print("Server stopped.")
 
 def main():
     parser = argparse.ArgumentParser(description='Chat Room Server')
@@ -155,7 +164,9 @@ def main():
 
     args = parser.parse_args()
 
-    server = ChatServer(args["host"], args["port"])
+    server = ChatServer(args.host, args.port, 30, 60)
+    # server.start();
+
 
 if __name__ == "__main__":
     main()

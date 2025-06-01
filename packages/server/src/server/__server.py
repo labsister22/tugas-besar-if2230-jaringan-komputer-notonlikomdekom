@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 import random # Added for local_seq_num generation
 
-from tou.connection import Connection # source 6 (modified)
+from tou.Connection import Connection # source 6 (modified)
 from tou.host import Host
 
 class ChatServer:

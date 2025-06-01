@@ -1,7 +1,7 @@
 import socket
 from time import time, sleep
 from tou.segment import Segment, SegmentHeader
-from tou.Connection import Connection
+from tou.connection import Connection
 
 class ClientConnection(Connection):
     '''TCP over UDP connection class for a 1-to-1 connection from a client to a remote host.'''
@@ -33,7 +33,7 @@ class ClientConnection(Connection):
 
         super()._connect()
 
-    
+
     def _internal_recv(self, buf_size) -> bytes:
         try:
             return self._socket.recv(buf_size)
@@ -45,11 +45,11 @@ class ClientConnection(Connection):
         except Exception as e:
             raise e
 
-    
+
     def _internal_send(self, data):
         self._socket.send(data)
 
-    
+
     def _three_way_handshake(self):
         '''Establishes a three-way-handshake with the remote host of this connection'''
 

@@ -1,4 +1,4 @@
-from tou.Connection import Connection
+from tou.connection import Connection
 
 
 class HostConnection(Connection):
@@ -36,18 +36,17 @@ class HostConnection(Connection):
             return data[:max(buf_size, len(data))]
         else:
             return b''
-        
-    
+
+
     def _after_disconnect(self):
         self.host._internal_disconnect(self)
 
-    
+
     def _internal_send(self, data):
         return self.host._internal_sendto(self.remote_addr[0], self.remote_addr[1], data)
 
-    
+
     def _internal_recvfrom(self, data: bytes):
         '''Sends data to this connection, used by the host class to distribute incoming segments'''
 
         self._recv_buffer.append(data)
-    
