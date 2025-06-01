@@ -1,162 +1,159 @@
-# Chat Real-Time TCP-over-UDP (Go-Back-N)
+# Chat TCP
+ <div align="center">
+  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&height=300&color=timeGradient&text=Not%20%Only%20%Kom%20De%20%Kom&reversal=true&fontAlign=50&animation=twinkling&textBg=false&stroke=ffffff&strokeWidth=4&fontColor=ffffff&fontSize=0" />
+</div>
 
-Aplikasi live-chat yang mensimulasikan koneksi TCP over UDP, dengan GUI berbasis **Tkinter** dan server Python.
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-🔥Cooked🔥-FF0000" />
+  <img src="https://img.shields.io/badge/Version-1.0.0-brightgreen" />
+  <img src="https://img.shields.io/badge/License-MIT-yellowgreen" />
+  <img src="https://img.shields.io/badge/Built_With-Python-blue" />
+</p>
+
+<h1 align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=500&color=81a1c1&center=true&vCenter=true&width=600&lines=13523123,+13523161,+13523162,+and+13523163;Bimo,+Arlow,+Riza,+dan+Filbert" alt="R.Bimo, Arlow, Riza, dan Filbert" />
+</h1>
+
+
+## 📦 Table of Contents
+
+- [🔍 Overview](#-overview)
+- [📶 How To Run](#-how-to-run)
+- [🤖 Referensi](#-referensi)
+- [👤 Author & Pembagian Tugas](#-author)
+- [♾️ License](#-license)
 
 ---
 
-## Fitur
+## 🔍 Overview
+
+Aplikasi live-chat yang mensimulasikan koneksi TCP over UDP, tapi cooked sekali. Plz lab sister have mercy upon us!
+
+### Fitur
 
 * **Handshake mirip TCP** (SYN, SYN-ACK, ACK) dan penutupan FIN.
-* **Go-Back-N**: memecah pesan jadi blok 64 byte dan mengirimkan blok pesan secara berurutan.
 * **Heartbeat** tiap 1 detik + **AFK timeout** 30 detik.
-* **Suara ke teks** via PyAudio dan SpeechRecognition (kreativitas).
-* Tampilan gelap **Tkinter** dengan bubble pesan dan auto-scroll.
 * Perintah: `!disconnect`, `!change <nama>`, `!kill <password>`.
-* Cross-platform: Windows, Linux/WSL, macOS.
 
 ---
 
-## Cara Kerja
+## 📶 How To Run
 
-1. **Client - Server** dihubungkan melalui metode UDP port 42234.
-2. **Handshake 3 langkah** memastikan koneksi antara client dan server terjalin meskipun di atas UDP yang _connectionless_.
-3. **Server** mem-*broadcast* pesan ke semua client menggunakan paket UDP yang dipecah jadi segmen (Go-Back-N). Kalau ada segmen hilang, server tidak menunggu ACK tapi data berikutnya akan tetap terkirim. Chat masih bisa jalan dengan satu paket per pesan.
-4. **Heartbeat** menjaga koneksi tetap hidup. Jika client tidak kirim heartbeat selama 30 detik, dianggap AFK dan packet didrop.
+Follow these steps to get the application running on your local machine:
 
----
+Note: Please have python 3.11 installed
 
-## Instalasi & Kebutuhan
+0. **Make sure you have installed uv**
 
-### Kebutuhan
-
-* **Python 3.11**
-* **Tkinter** (bawaan CPython)
-* `speech_recognition` (dengan nama package `SpeechRecognition`) (bonus kreativitas)
-* `pyaudio` (bonus kreativitas, install di Windows melalui wheel dari GitHub)
-* **Pinggy** (opsional, untuk NAT/port forwarding)
-
-### Langkah Awal
-1. Pastikan terminal sudah berada pada root direktori (tugas-besar-if2230-jaringan-komputer-dotkom/)
-2. Masuk ke Folder Dotkom:
-```bash
-cd Dotkom
-```
-
-### Install Dependencies
-
-```bash
-pip install SpeechRecognition
-pip install pyaudio
-```
-
-> **Di Windows**: kalau `pip install pyaudio` gagal, download `.whl` dari [https://github.com/dev-jam/opensesame_plugin_installer/blob/master/PyAudio-0.2.11-cp311-cp311-win_amd64.whl].
-
----
-
-## Run di jaringan lokal (2 komputer dalam 1 jaringan LAN)
-
-1. **Server**:
-
-   ```bash
-   python server.py  # mendengarkan di 0.0.0.0:42234/udp
+   a. Windows:
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
    ```
-2. **Client**:
-
+   b. MacOS and Linux:
+   With curl:
    ```bash
-   python client.py
-   ```
-Di GUI, masukkan:
-   * *Your Name*: misal `Budi`
-   * *Server IP*: alamat IP tempat server dijalankan, misal `192.168.1.42` atau `127.0.0.1` jika server dan client dijalankan di komputer yang sama.
-   * *Your Port*: misal `50000` (pilih port UDP yang kosong)
-   * Klik Connect
-
----
-
-## Run melalui Pinggy (Port Forwarding)
-
-### Server
-
-1. Run script PowerShell (Windows) untuk run pinggy.exe sebagai tunnel:
-
-   ```bash
-   ./port_forwarding.ps1
-   ```
-   Atau jika menggunakan Linux (WSL), run perintah berikut di terminal:
-   ```bash
-   pinggy -p 443 -R0:127.0.0.1:42234 TE5L4FmeNFw+udp@free.pinggy.io
+   curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
+   With wget:
+   ```bash
+   wget -qO- https://astral.sh/uv/install.sh | sh
+   ```
 
-   Pada terminal Pinggy akan muncul tulisan seperti `rnhco-180-244-133-40.a.free.pinggy.link:41377 -> 127.0.0.1:42234` setelah koneksi tunnel berhasil. Salin URL sebelum `->`.
-2. Di terminal yang berbeda, run ```python server.py``` (port 42234) seperti metode LAN.
+   Or you can also see the installation steps and documentation [here](https://docs.astral.sh/uv/getting-started/installation/#__tabbed_1_1)
 
-### Client
-Sama seperti metode LAN, run ```python client.py```.
-Di GUI, masukkan:
-   * *Your Name*: misal `Budi`
-   * *Server IP*: URL pinggy.link:port yang diperoleh dari terminal pinggy, contoh: `rnhco-180-244-133-40.a.free.pinggy.link:41377`
-   * *Your Port*: misal `50000` (pilih port UDP yang kosong)
-   * Klik Connect
+2. **Download the ZIP Release**
+   - Navigate to the repository’s releases page and download the latest zip file.
 
+3. **Extract the ZIP File**
+   - Unzip the downloaded file to your preferred location.
 
+4. **Open (atleast 2) Terminals**
+   - Open atleast two difference instances of terminal
+   - Navigate both terminal (`cd`) to the folder where you extracted the project.
 
----
+5. **Run**
 
-## Perintah client
-
-* `!disconnect` → Keluar chat.
-* `!change <namaBaru>` → Ganti nama tampilan.
-* `!kill <password>` → Matikan server jika password benar.
-
----
-
-## Struktur Folder
-
-```
-.  
-├── client.py             # GUI Tkinter  
-├── server.py             # Server UDP + logika heartbeat  
-├── features/             # Kode lapisan protokol  
-│   ├── better_udp_socket.py  # Handshake & utilitas socket  
-│   ├── flow_control.py       # Go-Back-N sender/receiver  
-│   └── segment.py            # Format header (SRC/DST/SEQ/ACK/...)
-└── README.md             # Readme
-```
-
----
-
-## Troubleshooting
-
-* **Pesan tidak muncul di client**:
-
-  * Pastikan server mencetak `Sent N bytes to (ip,port)` ke terminal.
-  * Buka firewall untuk mengizinkan koneksi UDP 42234.
-  * Di Windows: jalankan server & client di jaringan privat atau izinkan melalui firewall.
-
-* **Error `WinError 10013`**:
-
-  * Artinya port 42234 sudah dipakai. Jika ada aplikasi yang menggunakan port itu, stop aplikasi tersebut atau ubah `SRC_PORT` di `server.py`.
-
-* **Paket hilang/lag di internet**:
-
-  * Tingkatkan `MAX_PAYLOAD_SIZE` (misal jadi 128) untuk mengurangi jumlah segmen.
-
-* **`ModuleNotFoundError: pyaudio`**:
-
-  * Pasang `pyaudio` dari wheel di Windows.
+   a. Terminal 1:
+      ```bash
+      uv run -m server
+      ```
+   b. Terminal 2:
+      ```bash
+      uv run -m client
+      ```
+   c. Terminal 1:
+      ```bash
+      python -m packages.server.src.server.server
+      ```
+   d. Terminal 2:
+      ```bash
+      python -m packages.client.src.client.client
+      ```
 
 ---
 
-## Rencana Pengembangan
+## 🤖 Referensi
 
-* WebSocket gateway (akses via browser).
-* Enkripsi (DTLS).
-* Transfer file dengan resume.
-* Pindah ke `asyncio` buat skalabilitas lebih baik.
+Kebanyakan sih dari Spesifikasi yang diberikan, namun ada beberapa yang dari ChatGPT
 
 ---
 
-## License
+## 👤 Author
 
-This project is licensed under the MIT License – see the [LICENSE](LICENSE.md) file for details.
+<table align="center">
+  <tr>
+    <th align="center">User</th>
+    <th align="center">Job</th>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/Cola1000">
+        <img src="https://avatars.githubusercontent.com/u/143616767?v=4" width="80px" style="border-radius: 50%;" alt="Cola1000"/><br />
+        <sub><b>Rhio Bimo Prakoso S</b></sub>
+      </a>
+    </td>
+    <td align="center">Setup, Segment (+Host, and README)</td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/Arlow5761">
+        <img src="https://avatars.githubusercontent.com/u/96019562?v=4" width="80px" style="border-radius: 50%;" alt="Arlow5761"/><br />
+        <sub><b>Arlow Emmanuel Hergara</b></sub>
+      </a>
+    </td>
+    <td align="center">Flow Control dan TCP</td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/L4mbads">
+        <img src="https://avatars.githubusercontent.com/u/85736842?v=4" width="80px" style="border-radius: 50%;" alt="L4mbads"/><br />
+        <sub><b>Fachriza Ahmad Setiyono</b></sub>
+      </a>
+    </td>
+    <td align="center">Client</td>
+  </tr>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/filbertengyo">
+        <img src="https://avatars.githubusercontent.com/u/163801345?v=4" width="80px" style="border-radius: 50%;" alt="filbertengyo"/><br />
+        <sub><b>Filbert Engyo</b></sub>
+      </a>
+    </td>
+    <td align="center">Server</td>
+  </tr>
+</table>
+
+<div align="center" style="color:#6A994E;"> 🌿 Please Donate for Charity! 🌿</div>
+
+<p align="center">
+  <a href="https://tiltify.com/@cdawg-va/cdawgva-cyclethon-4" target="_blank">
+    <img src="https://assets.tiltify.com/uploads/cause/avatar/4569/blob-9169ab7d-a78f-4373-8601-d1999ede3a8d.png" alt="IDF" style="height: 80px;padding: 20px" />
+  </a>
+</p>
+
+---
+
+## ♾️ License
+
+This project is licensed under the MIT License

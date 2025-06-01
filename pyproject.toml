@@ -1,11 +1,10 @@
 [project]
-name = "dotkom"
+name = "notonlikomdekom"
 version = "0.1.0"
-description = "Goated"
+description = "Doomed"
 readme = "README.md"
 requires-python = ">=3.13"
 
 dependencies = [
-    "speechrecognition",
-    "pyaudio"
+    "windows-curses",
 ]

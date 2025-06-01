@@ -1,9 +1,9 @@
 import struct
 import zlib
 
-SYN = 0b00000010  # 2
-FIN = 0b00000001  # 1
-ACK = 0b00010000  # 16
+SYN = 0b00000001  # 1
+FIN = 0b00000010  # 2
+ACK = 0b00000100  # 4
 
 PORT_BITS = 16
 SEQ_BITS = 32
@@ -24,7 +24,7 @@ MAX_PAYLOAD_SIZE = 64
 RECV_BUFFER = MAX_HEADER_SIZE + MAX_PAYLOAD_SIZE
 
 class Segment:
-    def __init__(self, src_port, dest_port, seq_num=0, ack_num=0, checksum=0, window=0, flags=0, payload=b''): 
+    def __init__(self, src_port, dest_port, seq_num=0, ack_num=0, checksum=0, window=0, flags=0, payload=b''):
         self.src_port = src_port & PORT_MAX
         self.dest_port = dest_port & PORT_MAX
         self.seq_num = seq_num & SEQ_MAX
@@ -40,7 +40,7 @@ class Segment:
             self.dest_port,
             self.seq_num,
             self.ack_num,
-            0,  
+            0,
             self.window,
             self.flags,
             0

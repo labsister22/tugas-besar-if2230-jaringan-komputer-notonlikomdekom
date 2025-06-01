@@ -10,7 +10,6 @@ import collections # Added for deque
 import queue # Added for message queue between threads
 
 from tou.Connection import BetterUDPSocket
-import speech_recognition as sr
 
 DEST_PORT = 34112 # Default server port
 
@@ -29,14 +28,6 @@ class ChatClientCurses:
         self.input_buffer = ""
         self.placeholder = "Type your message or !help"
 
-        # Speech Recognition
-        self.is_recording = False
-        self.recognizer = sr.Recognizer()
-        try:
-            self.microphone = sr.Microphone()
-        except Exception as e:
-            self.microphone = None
-            self.message_queue.put(("system_info", f"Microphone not found/accessible: {e}. STT disabled."))
 
 
         try:
@@ -153,7 +144,7 @@ class ChatClientCurses:
                     time.sleep(2) # Brief pause to see message
                     self.running = False
                     break # Exit main loop
-                elif msg_type == "input_text": # For STT
+                elif msg_type == "input_text":
                     if self.input_buffer == self.placeholder:
                         self.input_buffer = ""
                     self.input_buffer += msg_content
@@ -329,9 +320,6 @@ class ChatClientCurses:
             self.message_queue.put(("system_info", "Kill command sent."))
             return
 
-        if message == "!stt":
-            self.toggle_recording()
-            return
 
         if message == "!help":
             self._show_help()
@@ -349,7 +337,6 @@ class ChatClientCurses:
             "  !disconnect          - Disconnect from the server.",
             "  !change <new_name>   - Change your display name.",
             "  !kill <password>     - Attempt to shut down the server.",
-            "  !stt                 - Toggle speech-to-text input (listens for ~5s).",
             "  !help                - Show this help message."
         ]
         for line in help_text:
@@ -445,42 +432,6 @@ class ChatClientCurses:
             print(f"Error sending disconnect message: {e}", file=sys.stderr)
 
 
-    def toggle_recording(self):
-        if not self.microphone:
-            self.message_queue.put(("system_info", "Speech-to-text unavailable (no microphone)."))
-            return
-
-        if self.is_recording:
-            self.is_recording = False # Logic to stop recording if it were continuous
-            # For this implementation, record_voice is a one-shot deal.
-        else:
-            self.is_recording = True # Indicates recording is in progress
-            # STT runs in a separate thread
-            threading.Thread(target=self.record_voice, daemon=True).start()
-
-
-    def record_voice(self):
-        if not self.microphone: return
-
-        with self.microphone as source:
-            self.message_queue.put(("system_info", "Listening for voice input..."))
-            self._redraw_windows() # Update screen to show "Listening"
-            try:
-                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-                audio = self.recognizer.listen(source, timeout=5, phrase_time_limit=5)
-                text = self.recognizer.recognize_google(audio)
-                self.message_queue.put(("input_text", text + " ")) # Add to input buffer
-            except sr.WaitTimeoutError:
-                self.message_queue.put(("system_info", "Listening timed out (no speech detected)."))
-            except sr.UnknownValueError:
-                self.message_queue.put(("system_info", "Could not understand audio."))
-            except sr.RequestError as e:
-                self.message_queue.put(("system_info", f"Speech service error: {e}"))
-            except Exception as e:
-                 self.message_queue.put(("system_info", f"STT error: {e}"))
-            finally:
-                self.is_recording = False
-
 
 # --- Initial Setup Window (Curses based) ---
 def get_initial_input_curses(stdscr):
@@ -569,7 +520,7 @@ if __name__ == "__main__":
     # This import is here because server.py might also have AFK_COUNTDOWN
     # and we only need it on client side for status display if available.
     try:
-        from server import AFK_COUNTDOWN
+        from Server import AFK_COUNTDOWN
     except ImportError:
         AFK_COUNTDOWN = "N/A" # Fallback if server.py or variable not found
 
