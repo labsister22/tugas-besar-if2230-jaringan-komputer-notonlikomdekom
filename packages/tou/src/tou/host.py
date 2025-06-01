@@ -29,7 +29,7 @@ class Host:
         CLOSED = auto()
 
 
-    def __init__(self, ip_addr: str, port: int, window_size: int = 4096, resend_delay: float = 0.1, timeout: float = 1, max_connections: int = -1):
+    def __init__(self, ip_addr: str, port: int, window_size: int = 4096, resend_delay: float = 0.1, timeout: float = 1, max_connections: int = 999):
         '''Creates a host on a given ip address and port (max_connections = -1 means no limit)'''
 
         self.address = (ip_addr, port)
@@ -60,7 +60,7 @@ class Host:
 
         with self._queued_connections_lock:
             if self._queued_connections:
-                self._listened_connections.append(self._queued_connections)
+                self._listened_connections.append(self._queued_connections[0])
                 self._queued_connections.pop(0)
                 return self._listened_connections[-1]
             else:
@@ -84,7 +84,11 @@ class Host:
             sleep(self.resend_delay)
 
             try:
+                print("try to receive")
                 data, addr = self._socket.recvfrom(SegmentHeader.SIZE + Segment.MAX_SIZE)
+                if not data:
+                    break
+                print("rrrrrrrrrrrrrrrrrrrrrrrreceived", addr)
             except socket.error as e:
                 if e.errno == socket.EWOULDBLOCK:
                     continue
@@ -96,11 +100,13 @@ class Host:
             # If data is a syn segment, create request and reply with synack
             # Ignore otherwise
 
+
             dispatched = False
 
             with self._queued_connections_lock:
                 for connection in self._listened_connections:
                     if connection.remote_addr == addr:
+                        print("BBBBBBBBBBBBBBBBBBBBBBBBB", len(data))
                         connection._internal_recvfrom(data)
                         dispatched = True
                         break
@@ -139,6 +145,8 @@ class Host:
             if dispatched:
                 continue
 
+            print("checking packet")
+            print(segment.header.flags, SegmentHeader.SYN_FLAG)
             if segment.header.flags == SegmentHeader.SYN_FLAG and len(self._listened_connections) + len(self._queued_connections) + len(self._starting_connections) < self.max_connections:
                 new_request = Host._ConnectionRequest(addr[0], addr[1], 0, 0, 0, 0)
                 new_request.local_seq_num = Segment.generate_random_syn()
@@ -149,15 +157,18 @@ class Host:
                 self._starting_connections.append(new_request)
 
                 # Reply with SYN ACK
-                synack_segment = Segment(
-                    self.address[0],
-                    new_request.port,
-                    new_request.local_seq_num,
-                    new_request.remote_seq_num + 1,
-                    SegmentHeader.SYN_FLAG | SegmentHeader.ACK_FLAG,
-                    new_request.incoming_window,
-                    b''
-                )
+                try:
+                    synack_segment = Segment(
+                        self.address[1],
+                        new_request.port,
+                        new_request.local_seq_num,
+                        new_request.remote_seq_num + 1,
+                        SegmentHeader.SYN_FLAG | SegmentHeader.ACK_FLAG,
+                        new_request.incoming_window,
+                        b''
+                    )
+                except ValueError as e:
+                    print(repr(e))
 
                 self._socket.sendto(synack_segment.pack(), addr)
 
@@ -165,6 +176,7 @@ class Host:
     def _internal_sendto(self, ip_addr: str, port: int, data: bytes):
         '''Sends raw UDP data to a specified ip address and port, used by host connections to send data to client'''
 
+        print("CCCCCCCCCCCCCCCCCCCCC", ip_addr, port)
         self._socket.sendto(data, (ip_addr, port))
 
     def _internal_disconnect(self, connection: HostConnection):

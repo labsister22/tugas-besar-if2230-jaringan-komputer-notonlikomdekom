@@ -33,6 +33,7 @@ class HostConnection(Connection):
         if self._recv_buffer:
             data = self._recv_buffer[0]
             self._recv_buffer.pop(0)
+            print("goofy ahh")
             return data[:max(buf_size, len(data))]
         else:
             return b''
@@ -49,4 +50,5 @@ class HostConnection(Connection):
     def _internal_recvfrom(self, data: bytes):
         '''Sends data to this connection, used by the host class to distribute incoming segments'''
 
+        print("AAAAAAAAAAAAAAAAAAAAAAAAAA", len(data))
         self._recv_buffer.append(data)

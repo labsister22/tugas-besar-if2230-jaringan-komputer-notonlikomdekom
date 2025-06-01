@@ -10,7 +10,7 @@ class ChatServer:
     class Connection:
         '''A connection to a chat client'''
 
-        def __init_(self, connection: HostConnection):
+        def __init__(self, connection: HostConnection):
             '''Creates a connection instance to a chat client'''
 
             self.connection = connection
@@ -46,6 +46,7 @@ class ChatServer:
 
             # Process open but unnamed connections
             for connection in self._unnamed_connections:
+                print(-1)
                 if connection.msg_len == 0:
                     buffer = connection.connection.recv(0, 4 - len(connection.buffer))
 
@@ -67,6 +68,7 @@ class ChatServer:
                         # disconnect for being idle for too long
                         continue
 
+                print(0)
                 if len(connection.buffer) < connection.msg_len:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
                     if buffer:
@@ -79,7 +81,9 @@ class ChatServer:
                 # Process complete message
                 if len(connection.buffer) == connection.msg_len:
                     message = connection.buffer.decode("utf-8")
+                    print("1", message)
                     if message.startswith("!change"):
+                        print("2", message)
                         # process name change command
                         pass
 
@@ -87,6 +91,7 @@ class ChatServer:
                     connection.buffer = b''
 
             # Process current open connections
+            # print("Processing open connection")
             for connection in self._connections:
                 if connection.msg_len == 0:
                     buffer = connection.connection.recv(0, 4 - len(connection.buffer))

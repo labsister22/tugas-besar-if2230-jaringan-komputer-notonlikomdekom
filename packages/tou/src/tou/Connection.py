@@ -50,7 +50,8 @@ class Connection(metaclass=ABCMeta):
         '''Sends data through the connection'''
 
         if self.state != Connection.State.CONNECTED:
-            raise RuntimeError("Connection not in connected state!")
+            return
+            # raise RuntimeError("Connection not in connected state!")
 
         with self._unsent_data_lock:
             self._unsent_data = self._unsent_data + data
@@ -60,7 +61,8 @@ class Connection(metaclass=ABCMeta):
         '''Receives incoming data from the connection'''
 
         if self.state != Connection.State.CONNECTED:
-            raise RuntimeError("Connection not in connected state!")
+            return self._received_data[:max_size]
+            # raise RuntimeError("Connection not in connected state!")
 
         while len(self._received_data) < min_size:
             sleep(self.resend_delay)
@@ -102,17 +104,22 @@ class Connection(metaclass=ABCMeta):
     def _background_task(self):
         '''Task that runs in the background, responsible for sending and receiving data from the socket'''
 
+        print("background")
         while self.state == Connection.State.CONNECTED:
+            # print("connected loop")
             self._background_recv()
             self._background_send()
             sleep(self.resend_delay)
 
         # Handle closing locally
         if self.state == Connection.State.CLOSING:
+            print("closing state")
             while self._unsent_data or self._queued_segments:
+                print("halo")
                 self._background_recv()
                 self._background_send()
                 sleep(self.resend_delay)
+            print("closing state 2")
 
             fin_segment = Segment(
                     self.local_addr[1],
@@ -124,9 +131,11 @@ class Connection(metaclass=ABCMeta):
                     b''
                 )
             self._internal_send(fin_segment.pack())
+        print("out closing state")
 
         # Respond to FIN from peer with FIN ACK
         if self.state == Connection.State.CLOSED:
+            print("in closed state")
             fin_segment = Segment(
                     self.local_addr[1],
                     self.remote_addr[1],
@@ -150,9 +159,9 @@ class Connection(metaclass=ABCMeta):
                 if not self._queued_segments:
                     self._last_ack_time = time()
 
-                while self._queued_segments_size + SegmentHeader.SIZE < self.outgoing_window_size:
+                while self._queued_segments_size + SegmentHeader.SIZE < self._outgoing_window_size and self._unsent_data:
                     # Get data that will be sent
-                    data_size = min(len(self._unsent_data), min(self.outgoing_window_size - self._queued_segments_size), Segment.MAX_SIZE)
+                    data_size = min(len(self._unsent_data), min(self._outgoing_window_size - self._queued_segments_size, Segment.MAX_SIZE))
                     data = self._unsent_data[:data_size]
                     self._unsent_data[data_size:]
 
@@ -170,6 +179,8 @@ class Connection(metaclass=ABCMeta):
 
                     self._queued_segments.insert(-1, segment)
                     self._queued_segments_size += SegmentHeader.SIZE + len(data)
+                    print(len(self._unsent_data), self._outgoing_window_size - self._queued_segments_size, Segment.MAX_SIZE)
+                    print("background send5")
 
         # Send all segments in queue
         if self._queued_segments:
@@ -203,6 +214,9 @@ class Connection(metaclass=ABCMeta):
         except Exception as e:
             return # Ignore errors, move on to next segment
 
+        print("xxxxxxxxxxxxxxxxxxxxxxxxxxxxx", segment.header.seq_num)
+        # print(len(segment.payload), segment.payload.decode("utf-8"))
+        # print(segment.header.flags)
         # Remove all queued segments that have a sequence number lower than the highest received ack
         if segment.header.flags & SegmentHeader.ACK_FLAG:
             if segment.header.ack_num > self._highest_received_ack:
@@ -218,10 +232,13 @@ class Connection(metaclass=ABCMeta):
 
         # Handle receiving data and sending acknowledgement
         if segment.payload:
+            print(segment.header.seq_num, self._highest_accepted_seq)
             if segment.header.seq_num <= self._highest_accepted_seq:
+                print("masuk 1")
                 # ACK for this segment has already been sent, OK to send again
                 self._need_send_ack = True
             else:
+                print("masuk 2")
                 # Need to check if ACK for this segment can be sent
                 total_size = SegmentHeader.SIZE + segment.header.size
                 index = 0
@@ -229,6 +246,7 @@ class Connection(metaclass=ABCMeta):
                 while index < len(self._incoming_window):
                     if self._incoming_window[index].header.seq_num == segment.header.seq_num:
                         index = -1
+                        self._need_send_ack = True
                         break
                     elif self._incoming_window[index].header.seq_num > segment.header.seq_num:
                         break
@@ -250,6 +268,7 @@ class Connection(metaclass=ABCMeta):
                     with self._received_data_lock:
                         while self._incoming_window:
                             if self._incoming_window[0].header.seq_num == self._highest_accepted_seq + 1:
+                                print("masuk 3")
                                 self._highest_accepted_seq += 1
                                 self._received_data += self._incoming_window[0].payload
                                 self._incoming_window.pop(0)
@@ -258,7 +277,9 @@ class Connection(metaclass=ABCMeta):
                                 break
 
             # Send ACK immediately if piggybacking is not available
+            # print("mau ack", self._need_send_ack)
             if self._need_send_ack and not (self._queued_segments or self._unsent_data):
+                print("ACK ", self._highest_accepted_seq + 1)
                 self._need_send_ack = False
                 ack_segment = Segment(
                     self.local_addr[1],
