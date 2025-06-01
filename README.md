@@ -1,10 +1,10 @@
  # Not Only Kom the Kom
  <div align="center">
-  <img width="100%" src="https://capsule-render.vercel.app/api?type=blur&height=280&color=0:d8dee9,100:2e3440&text=FREAK%(y)%20%OS&fontColor=81a1c1&fontSize=50&animation=twinkling&" />
+  <img width="100%" src="https://capsule-render.vercel.app/api?type=blur&height=280&color=0:d8dee9,100:2e3440&text=Not%20%Only%20%Kom%20De%20%Kom&fontColor=81a1c1&fontSize=50&animation=twinkling&" />
 </div>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Status-Cooked-red" />
+  <img src="https://img.shields.io/badge/Status-🔥Cooked🔥-FF0000" />
   <img src="https://img.shields.io/badge/Version-1.0.0-brightgreen" />
   <img src="https://img.shields.io/badge/License-MIT-yellowgreen" />
   <img src="https://img.shields.io/badge/Built_With-Python-blue" />
@@ -17,9 +17,24 @@
 
 ## 📦 Table of Contents
 
+- [🔍 Overview](#-overview)
+- [📶 How To Run](#-setup)
+- [🤖 Referensi](#-referensi)
 - [👤 Author & Pembagian Tugas](#-author)
 
-## 👤 Author & Pembagian Tugas
+## 🔍 Overview
+
+Help
+
+## 📶 Setup
+
+Help
+
+## 🤖 Referensi
+
+Kebanyakan sih dari Spesifikasi yang diberikan, namun ada beberapa yang dari ChatGPT
+
+## 👤 Author
 
 <table align="center">
   <tr>
