@@ -1,6 +1,11 @@
-[tool.uv.workspace]
-members = ["packages/*"]
+[project]
+name = "dotkom"
+version = "0.1.0"
+description = "Goated"
+readme = "README.md"
+requires-python = ">=3.13"
 
-[build-system]
-requires = ["uv"]
-build-backend = "uv.backend"
+dependencies = [
+    "speechrecognition",
+    "pyaudio"
+]
