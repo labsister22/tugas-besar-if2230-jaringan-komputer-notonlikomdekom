@@ -11,14 +11,14 @@
 </p>
 
 <h1 align="center">
-  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=500&color=81a1c1&center=true&vCenter=true&width=600&lines=13523123,+13523161,+13523162,+and+13523163;Bimo,+Arlow,+Riza,+dan+Filbert" alt="R.Bimo & Arlow" />
+  <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=500&color=81a1c1&center=true&vCenter=true&width=600&lines=13523123,+13523161,+13523162,+and+13523163;Bimo,+Arlow,+Riza,+dan+Filbert" alt="R.Bimo, Arlow, Riza, dan Filbert" />
 </h1>
 
 
 ## 📦 Table of Contents
 
 - [🔍 Overview](#-overview)
-- [📶 How To Run](#-setup)
+- [📶 How To Run](#-how-to-run)
 - [🤖 Referensi](#-referensi)
 - [👤 Author & Pembagian Tugas](#-author)
 
@@ -26,9 +26,58 @@
 
 Help
 
-## 📶 Setup
+## 📶 How To Run
 
-Help
+Follow these steps to get the application running on your local machine:
+
+0. **Make sure you have installed uv**
+
+   a. Windows:
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+   b. MacOS and Linux:
+   With curl:
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+   With wget:
+   ```bash
+   wget -qO- https://astral.sh/uv/install.sh | sh
+   ```
+
+   Or you can also see the installation steps and documentation [here](https://docs.astral.sh/uv/getting-started/installation/#__tabbed_1_1)
+
+2. **Download the ZIP Release**  
+   - Navigate to the repository’s releases page and download the latest zip file.
+
+3. **Extract the ZIP File**  
+   - Unzip the downloaded file to your preferred location.
+
+4. **Open (atleast 2) Terminals**
+   - Open atleast two difference instances of terminal
+   - Navigate both terminal (`cd`) to the folder where you extracted the project.
+
+5. **Run**
+
+   a. Terminal 1:
+      ```bash
+      uv run -m client
+      ```
+   b. Terminal 2:
+      ```bash
+      uv run -m server
+      ```
+   c. Terminal 1:
+      ```bash
+      python -m packages.server.src.server.server
+      ```
+   d. Terminal 2:
+      ```bash
+      python -m packages.client.src.client.client
+      ```
+
 
 ## 🤖 Referensi
 
