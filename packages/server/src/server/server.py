@@ -59,19 +59,22 @@ class ChatServer:
                             # msg_len is still incomplete, do not process any further
                             continue
                     elif connection.buffer and time.time() - connection.last_seen < self.disconnect_timeout:
+                        self._unnamed_connections.remove(connection)
                         # disconnect because stopped sending message mid stream
-                        pass
+                        continue
                     elif time.time() - connection.last_seen < self.idle_timeout:
+                        self._unnamed_connections.remove(connection)
                         # disconnect for being idle for too long
-                        pass
+                        continue
                 
                 if len(connection.buffer) < connection.msg_len:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
                     if buffer:
                         connection.buffer += buffer
                     elif time.time() - connection.last_seen < self.disconnect_timeout:
+                        self._unnamed_connections.remove(connection)
                         # disconnect because stopped sending message mid stream
-                        pass
+                        continue
                 
                 # Process complete message
                 if len(connection.buffer) == connection.msg_len:
@@ -99,10 +102,12 @@ class ChatServer:
                             continue
                     elif connection.buffer and time.time() - connection.last_seen < self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
-                        pass
+                        self._connections.remove(connection)
+                        continue
                     elif time.time() - connection.last_seen < self.idle_timeout:
                         # disconnect for being idle for too long
-                        pass
+                        self._connections.remove(connection)
+                        continue
                 
                 if len(connection.buffer) < connection.msg_len:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
@@ -110,7 +115,8 @@ class ChatServer:
                         connection.buffer += buffer
                     elif time.time() - connection.last_seen < self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
-                        pass
+                        self._connections.remove(connection)
+                        continue
                 
                 # Process complete message
                 if len(connection.buffer) == connection.msg_len:
@@ -119,26 +125,27 @@ class ChatServer:
                     # !disconnect should be handled on the client and should just close the connection
 
                     if message.startswith("!kill"):
+                        self._host.close()
                         # process server shutdown command
-                        pass
+                        return
                     if message.startswith("!change"):
+                        new_name = message[8:].strip()
+                        connection.username = new_name
                         # process name change command
-                        pass
                     if message == "!heartbeat":
+                        
                         # process heartbeat
                         # echo heartbeat back to client to inform that the server is still open
                         pass
                     else:
                         # process normal message
-                        pass
+                        for other in self._connections:
+                            if other is not connection:
+                                msg = f"[{connection.username}] {message}".encode("utf-8")
+                                other.connection.send(struct.pack("<I", len(msg)) + msg)
                     
                     connection.msg_len = 0
                     connection.buffer = b''
-
-
-
-
-
 
 def main():
     parser = argparse.ArgumentParser(description='Chat Room Server')

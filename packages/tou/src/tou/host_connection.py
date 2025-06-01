@@ -1,4 +1,4 @@
-from tou.connection import Connection
+from tou.Connection import Connection
 
 
 class HostConnection(Connection):

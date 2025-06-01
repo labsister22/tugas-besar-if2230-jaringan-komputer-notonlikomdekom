@@ -1,7 +1,7 @@
 import socket
 from time import time, sleep
 from tou.segment import Segment, SegmentHeader
-from tou.connection import Connection
+from tou.Connection import Connection
 
 class ClientConnection(Connection):
     '''TCP over UDP connection class for a 1-to-1 connection from a client to a remote host.'''
