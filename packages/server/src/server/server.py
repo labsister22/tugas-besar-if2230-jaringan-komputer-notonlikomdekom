@@ -149,11 +149,7 @@ class ChatServer:
 
     def stop(self):
         """Stop the chat server"""
-        if self._host:
-            self._host.close()
-        self._connections.clear()
-        self._unnamed_connections.clear()
-        self._host.state = Host.State.CLOSED
+        self._host.close()
         print("Server stopped.")
 
 def main():
@@ -165,7 +161,10 @@ def main():
     args = parser.parse_args()
 
     server = ChatServer(args.host, args.port, 30, 60)
-    # server.start();
+    try:
+        server.start();
+    except KeyboardInterrupt:
+        server.stop();
 
 
 if __name__ == "__main__":

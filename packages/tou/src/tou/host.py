@@ -22,7 +22,7 @@ class Host:
             self.outgoing_window = outgoing_window
             self.local_seq_num = local_seq_num
             self.remote_seq_num = remote_seq_num
-        
+
 
     class State(Enum):
         LISTENING = auto(),
@@ -35,6 +35,7 @@ class Host:
         self.address = (ip_addr, port)
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.bind(self.address)
+        self._socket.setblocking(False)
 
         self.max_connections = max_connections
         self._queued_connections_lock = Lock()
@@ -49,14 +50,14 @@ class Host:
         self.state = Host.State.LISTENING
         self._worker_thread = Thread(target=self._background_recv)
         self._worker_thread.start()
-    
+
 
     def listen(self) -> HostConnection | None:
         '''Listens to incoming connection requests and returns a HostConnection object when a connection has been established'''
 
         if self.state != Host.State.LISTENING:
             raise RuntimeError("Host already closed")
-        
+
         with self._queued_connections_lock:
             if self._queued_connections:
                 self._listened_connections.append(self._queued_connections)
@@ -78,8 +79,8 @@ class Host:
 
     def _background_recv(self):
         '''Background procedure to receive incoming segments'''
-    
-        while Host.State.LISTENING:
+
+        while self.state == Host.State.LISTENING:
             sleep(self.resend_delay)
 
             try:
@@ -89,7 +90,7 @@ class Host:
                     continue
                 else:
                     raise e
-            
+
             # If address is in listened or queued connections, dispatch
             # If address is in requested connections, verify ack and establish connection
             # If data is a syn segment, create request and reply with synack
@@ -103,10 +104,10 @@ class Host:
                         connection._internal_recvfrom(data)
                         dispatched = True
                         break
-                    
+
                 if dispatched:
                     continue
-                
+
                 for connection in self._queued_connections:
                     if connection.remote_addr == addr:
                         connection._internal_recvfrom(data)
@@ -115,26 +116,26 @@ class Host:
 
                 if dispatched:
                     continue
-    
+
                 try:
                     segment = Segment.unpack(data)
                 except Exception:
                     # Drop if data is not recognizable
                     continue
-    
+
                 for request in self._starting_connections:
                     if request.ip_addr == addr[0] and request.port == addr[1]:
                         dispatched = True
-    
+
                         self._starting_connections.remove(request)
-                        
+
                         # Make sure ACK is valid before connecting
                         if (segment.header.flags & SegmentHeader.ACK_FLAG) and (segment.header.ack_num == request.local_seq_num + 1):
                             new_connection = HostConnection(self, request)
                             self._queued_connections.append(new_connection)
-    
+
                         break
-            
+
             if dispatched:
                 continue
 
@@ -165,7 +166,7 @@ class Host:
         '''Sends raw UDP data to a specified ip address and port, used by host connections to send data to client'''
 
         self._socket.sendto(data, (ip_addr, port))
-    
+
     def _internal_disconnect(self, connection: HostConnection):
         '''Used by a dispatched host connection to disconnect'''
 

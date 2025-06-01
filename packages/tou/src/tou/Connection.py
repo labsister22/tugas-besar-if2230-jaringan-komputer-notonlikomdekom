@@ -45,13 +45,13 @@ class Connection(metaclass=ABCMeta):
         self._highest_received_ack = 0
         self._need_send_ack = False
 
-    
+
     def send(self, data: bytes):
         '''Sends data through the connection'''
 
         if self.state != Connection.State.CONNECTED:
             raise RuntimeError("Connection not in connected state!")
-        
+
         with self._unsent_data_lock:
             self._unsent_data = self._unsent_data + data
 
@@ -61,10 +61,10 @@ class Connection(metaclass=ABCMeta):
 
         if self.state != Connection.State.CONNECTED:
             raise RuntimeError("Connection not in connected state!")
-        
+
         while len(self._received_data) < min_size:
             sleep(self.resend_delay)
-        
+
         with self._received_data_lock:
             if len(self._received_data) < max_size:
                 data = self._received_data
@@ -72,20 +72,24 @@ class Connection(metaclass=ABCMeta):
             else:
                 data = self._received_data[:max_size]
                 self._received_data = self._received_data[max_size:]
-        
+
         return data
 
-    
+
     def close(self):
         '''Closes the connection, disables further sends and receives'''
+        print("closing")
 
         if self.state != Connection.State.CONNECTED:
             raise RuntimeError("Connection not in connected state!")
-        
+
+        print("a")
         self.state = Connection.State.CLOSING
         self._flow_control_thread.join()
+        print("b")
 
         self.state = Connection.State.CLOSED
+        print("c")
 
 
     def _connect(self):
@@ -94,7 +98,7 @@ class Connection(metaclass=ABCMeta):
         self.state = Connection.State.CONNECTED
         self._flow_control_thread = Thread(target=self._background_task)
         self._flow_control_thread.start()
-    
+
     def _background_task(self):
         '''Task that runs in the background, responsible for sending and receiving data from the socket'''
 
@@ -102,14 +106,14 @@ class Connection(metaclass=ABCMeta):
             self._background_recv()
             self._background_send()
             sleep(self.resend_delay)
-        
+
         # Handle closing locally
         if self.state == Connection.State.CLOSING:
             while self._unsent_data or self._queued_segments:
                 self._background_recv()
                 self._background_send()
                 sleep(self.resend_delay)
-            
+
             fin_segment = Segment(
                     self.local_addr[1],
                     self.remote_addr[1],
@@ -120,7 +124,7 @@ class Connection(metaclass=ABCMeta):
                     b''
                 )
             self._internal_send(fin_segment.pack())
-        
+
         # Respond to FIN from peer with FIN ACK
         if self.state == Connection.State.CLOSED:
             fin_segment = Segment(
@@ -133,13 +137,13 @@ class Connection(metaclass=ABCMeta):
                     b''
                 )
             self._internal_send(fin_segment.pack())
-        
+
         self._after_disconnect()
 
 
     def _background_send(self):
         '''Background procedure for sending segments'''
-        
+
         # Move unsent data into segment queue if space is available
         with self._unsent_data_lock:
             if self._unsent_data:
@@ -151,9 +155,9 @@ class Connection(metaclass=ABCMeta):
                     data_size = min(len(self._unsent_data), min(self.outgoing_window_size - self._queued_segments_size), Segment.MAX_SIZE)
                     data = self._unsent_data[:data_size]
                     self._unsent_data[data_size:]
-    
+
                     self._highest_sent_seq += 1
-    
+
                     segment = Segment(
                         self.local_addr[1],
                         self.remote_addr[1],
@@ -163,17 +167,17 @@ class Connection(metaclass=ABCMeta):
                         self.incoming_window_size,
                         data
                     )
-    
+
                     self._queued_segments.insert(-1, segment)
                     self._queued_segments_size += SegmentHeader.SIZE + len(data)
-        
+
         # Send all segments in queue
         if self._queued_segments:
             # Check if other side is actually responding to sent segments
             if time() - self._last_ack_time > self.timeout:
                 self.close()
                 raise RuntimeError("Remote end timed out")
-            
+
             for segment in self._queued_segments:
                 segment.header.ack_num = self._highest_accepted_seq + 1
 
@@ -181,10 +185,10 @@ class Connection(metaclass=ABCMeta):
                 if self._need_send_ack:
                     self._need_send_ack = False
                     segment.header.flags = segment.header.flags | SegmentHeader.ACK_FLAG
-                
+
                 self._internal_send(segment.pack())
 
-    
+
     def _background_recv(self):
         '''Background procedure for receiving segments'''
 
@@ -194,11 +198,11 @@ class Connection(metaclass=ABCMeta):
 
             if not data:
                 return
-            
+
             segment = Segment.unpack(data)
         except Exception as e:
             return # Ignore errors, move on to next segment
-        
+
         # Remove all queued segments that have a sequence number lower than the highest received ack
         if segment.header.flags & SegmentHeader.ACK_FLAG:
             if segment.header.ack_num > self._highest_received_ack:
@@ -211,7 +215,7 @@ class Connection(metaclass=ABCMeta):
                         self._queued_segments.pop(0)
                     else:
                         break
-        
+
         # Handle receiving data and sending acknowledgement
         if segment.payload:
             if segment.header.seq_num <= self._highest_accepted_seq:
@@ -252,7 +256,7 @@ class Connection(metaclass=ABCMeta):
                                 self._need_send_ack = True
                             else:
                                 break
-            
+
             # Send ACK immediately if piggybacking is not available
             if self._need_send_ack and not (self._queued_segments or self._unsent_data):
                 self._need_send_ack = False
@@ -266,11 +270,11 @@ class Connection(metaclass=ABCMeta):
                     b''
                 )
                 self._internal_send(ack_segment.pack())
-            
+
             # Handle FIN from remote
             if segment.header.flags & SegmentHeader.FIN_FLAG:
                 self.state = Connection.State.CLOSED
-    
+
     def _after_disconnect(self):
         pass
 
@@ -279,7 +283,7 @@ class Connection(metaclass=ABCMeta):
         '''Internal implementation of send that should be overriden by inheriting classes'''
 
         raise NotImplementedError(self._internal_send)
-    
+
     @abstractmethod
     def _internal_recv(self, buf_size: int) -> bytes:
         '''Internal implementation of recv that should be overriden by inheriting classes'''
