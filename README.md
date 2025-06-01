@@ -21,20 +21,27 @@
 - [📶 How To Run](#-how-to-run)
 - [🤖 Referensi](#-referensi)
 - [👤 Author & Pembagian Tugas](#-author)
+- [♾️ License](#-license)
+
+---
 
 ## 🔍 Overview
 
-Du weißt vielleicht schon, dass dieser Kurs eigentlich nach IF2130 „Betriebssysteme“ belegt werden sollte. Und das aus gutem Grund. Betriebssysteme sind im wahrsten Sinne des Wortes Voraussetzung für diesen Kurs. Daneben scheinen auch viele andere Kurse den Schwierigkeitsgrad/Arbeitsaufwand ihrer Aufgaben zu erhöhen, vielleicht jeder aus eigenen Gründen. Das macht dein akademisches Erlebnis ziemlich einzigartig und auch sehr stressig. Falls es dir noch niemand gesagt hat: Du machst das schon großartig, dass du es so weit geschafft hast.
+Aplikasi live-chat yang mensimulasikan koneksi TCP over UDP, tapi cooked sekali. Plz lab sister have mercy upon us!
 
-Es war ein ziemlich hektisches Semester, nicht nur für euch, sondern auch für uns. Wusstet ihr, dass in den Stundenplänen nicht einmal Platz für die Laborarbeit für diesen Kurs war, weshalb wir sie auf zwei Sitzungen aufteilen mussten? Ja, das war nicht lustig. Die Stundenpläne für dieses Semester sind wirklich schrecklich. Eigentlich sollte die Laborarbeit in der Woche nach den Zwischenprüfungen enden. Aber wegen zwei zusätzlichen Feiertagen (die eine Woche nicht nutzen konnten) und auch wegen des verzögerten Beginns aus anderen Gründen, wurde es am Ende ziemlich spät. Wir entschuldigen uns aufrichtig, falls ihr den Stundenplan ungünstig oder unpassend findet.
+### Fitur
 
-Wie dem auch sei, wir glauben, dass wir den Schwierigkeitsgrad dieses Projekts reduziert haben und es einigermaßen in Ordnung ist. Hoffentlich ist es jetzt nicht zu schwierig. Es ist zwar immer noch recht langwierig, aber angesichts der Verwendung des berüchtigten Python und der Existenz von LLMs halten wir den Arbeitsaufwand für angemessen. Nicht, dass die Verwendung von LLMs von Ihnen erwartet wird. Leider muss das Projekt einfach so gestaltet sein, dass Studierende, die das Ganze mit KI-Code ausprobieren möchten, zumindest verstehen müssen, was der von der KI bereitgestellte Code bewirkt.
+* **Handshake mirip TCP** (SYN, SYN-ACK, ACK) dan penutupan FIN.
+* **Heartbeat** tiap 1 detik + **AFK timeout** 30 detik.
+* Perintah: `!disconnect`, `!change <nama>`, `!kill <password>`.
 
-In diesem Sinne hoffen wir, dass Sie KI sinnvoll einsetzen und dem wirklichen Verständnis des Materials Priorität einräumen. Denken Sie daran, dass es sich um ein Werkzeug handelt und Sie mehr davon haben, wenn Sie sich weiter mit den Themen befassen, anstatt einfach nach dem Code zu fragen, der Ihnen auf dem Silbertablett serviert wird. Es ist uns egal, ob Sie kopieren und einfügen. Uns ist wichtig, dass Sie sich bemühen, jeden Code zu verstehen, den Sie kopieren und einfügen.
+---
 
 ## 📶 How To Run
 
 Follow these steps to get the application running on your local machine:
+
+Note: Please have python 3.11 installed
 
 0. **Make sure you have installed uv**
 
@@ -84,10 +91,13 @@ Follow these steps to get the application running on your local machine:
       python -m packages.client.src.client.client
       ```
 
+---
 
 ## 🤖 Referensi
 
 Kebanyakan sih dari Spesifikasi yang diberikan, namun ada beberapa yang dari ChatGPT
+
+---
 
 ## 👤 Author
 
@@ -141,3 +151,9 @@ Kebanyakan sih dari Spesifikasi yang diberikan, namun ada beberapa yang dari Cha
     <img src="https://assets.tiltify.com/uploads/cause/avatar/4569/blob-9169ab7d-a78f-4373-8601-d1999ede3a8d.png" alt="IDF" style="height: 80px;padding: 20px" />
   </a>
 </p>
+
+---
+
+## ♾️ License
+
+This project is licensed under the MIT License
