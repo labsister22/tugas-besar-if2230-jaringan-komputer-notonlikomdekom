@@ -62,10 +62,10 @@ Note: Please have python 3.11 installed
 
    Or you can also see the installation steps and documentation [here](https://docs.astral.sh/uv/getting-started/installation/#__tabbed_1_1)
 
-2. **Download the ZIP Release**  
+2. **Download the ZIP Release**
    - Navigate to the repository’s releases page and download the latest zip file.
 
-3. **Extract the ZIP File**  
+3. **Extract the ZIP File**
    - Unzip the downloaded file to your preferred location.
 
 4. **Open (atleast 2) Terminals**
@@ -76,26 +76,17 @@ Note: Please have python 3.11 installed
 
    a. Terminal 1:
       ```bash
-      uv run -m server
+      uv run src/Server.py
       ```
-   b. Terminal 2:
+   b. Terminal 2 dan seterusnya:
       ```bash
-      uv run -m client
+      uv run src/Client.py
       ```
-   c. Terminal 1:
-      ```bash
-      python -m packages.server.src.server.server
-      ```
-   d. Terminal 2:
-      ```bash
-      python -m packages.client.src.client.client
-      ```
-
 ---
 
 ## 🤖 Referensi
 
-Kebanyakan sih dari Spesifikasi yang diberikan, namun ada beberapa yang dari ChatGPT
+Kebanyakan sih dari Spesifikasi yang diberikan, namun ada beberapa yang dari ChatGPT dan Gemini
 
 ---
 
