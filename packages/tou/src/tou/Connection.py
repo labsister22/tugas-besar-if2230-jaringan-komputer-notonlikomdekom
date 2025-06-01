@@ -136,6 +136,7 @@ class Connection(metaclass=ABCMeta):
                 )
             self._internal_send(fin_segment.pack())
 
+        print("Connection disconnected")
         self._after_disconnect()
 
 
@@ -260,7 +261,6 @@ class Connection(metaclass=ABCMeta):
                                 break
 
             # Send ACK immediately if piggybacking is not available
-            # print("mau ack", self._need_send_ack)
             if self._need_send_ack and not (self._queued_segments or self._unsent_data):
                 self._need_send_ack = False
                 ack_segment = Segment(

@@ -1,6 +1,6 @@
-import socket
 import threading
 import time
+import curses
 from datetime import datetime
 from typing import Optional
 from tou.connection import Connection
@@ -18,32 +18,21 @@ class ChatClient:
     def start(self):
         """Start the chat client."""
         try:
-            # Establish connection
-            # self.connection = Connection(
-            #     local_ip_addr="0.0.0.0",
-            #     local_port=0,
-            #     remote_ip_addr=self.host,
-            #     remote_port=self.port,
-            #     incoming_window_size=4096,
-            #     outgoing_window_size=4096,
-            #     resend_delay=0.1,
-            #     timeout=1.0,
-            # )
             print("connecting")
             self.connection = ClientConnection(
                 self.host,
                 self.port
             )
-    # def __init__(self, ip_addr: str, port: int, window_size: int = 4096, resend_delay: float = 0.1, timeout: float = 1):
+    
             print("finish connecting")
             self.running = True
             new_name = "l4mbads"
             msg = f"!change {new_name}".encode("utf-8")
             self.connection.send(len(msg).to_bytes(4, 'little') + msg)
-            # self.connection._socket.send("xxxx")
+            
 
             # Start background threads
-            # threading.Thread(target=self._receive_messages, daemon=True).start()
+            # threading.Thread(target=self._receive_messages).start()
             threading.Thread(target=self._send_heartbeat).start()
 
             print(f"Connected to {self.host}:{self.port} as {self.display_name}")
@@ -79,13 +68,14 @@ class ChatClient:
         while self.running:
             try:
                 self.connection.send(len(b"!heartbeat").to_bytes(4, 'little') + b'!heartbeat')
-                time.sleep(10)
+                time.sleep(1)
             except Exception as e:
                 print(f"Error sending heartbeat: {e}")
                 self.stop()
 
     def _handle_user_input(self):
         """Handle user input."""
+        time.sleep(9999)
         while self.running:
             try:
                 message = input()

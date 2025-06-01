@@ -60,9 +60,9 @@ class Host:
 
         with self._queued_connections_lock:
             if self._queued_connections:
-                self._listened_connections.append(self._queued_connections[0])
-                self._queued_connections.pop(0)
-                return self._listened_connections[-1]
+                connection = self._queued_connections.pop(0)
+                self._listened_connections.append(connection)
+                return connection
             else:
                 return None
 
@@ -85,19 +85,17 @@ class Host:
 
             try:
                 data, addr = self._socket.recvfrom(SegmentHeader.SIZE + Segment.MAX_SIZE)
+                
                 if not data:
-                    break
-            except socket.error as e:
-                if e.errno == socket.EWOULDBLOCK:
                     continue
-                else:
-                    raise e
+
+            except Exception:
+                continue
 
             # If address is in listened or queued connections, dispatch
             # If address is in requested connections, verify ack and establish connection
             # If data is a syn segment, create request and reply with synack
             # Ignore otherwise
-
 
             dispatched = False
 
@@ -142,8 +140,6 @@ class Host:
             if dispatched:
                 continue
 
-            print("checking packet")
-            print(segment.header.flags, SegmentHeader.SYN_FLAG)
             if segment.header.flags == SegmentHeader.SYN_FLAG and len(self._listened_connections) + len(self._queued_connections) + len(self._starting_connections) < self.max_connections:
                 new_request = Host._ConnectionRequest(addr[0], addr[1], 0, 0, 0, 0)
                 new_request.local_seq_num = Segment.generate_random_syn()

@@ -31,8 +31,7 @@ class HostConnection(Connection):
 
     def _internal_recv(self, buf_size) -> bytes:
         if self._recv_buffer:
-            data = self._recv_buffer[0]
-            self._recv_buffer.pop(0)
+            data = self._recv_buffer.pop(0)
             return data[:max(buf_size, len(data))]
         else:
             return b''

@@ -52,6 +52,7 @@ class ChatServer:
 
                     if buffer:
                         connection.buffer += buffer
+                        connection.last_seen = time.time()
 
                         if len(connection.buffer) == 4:
                             connection.msg_len = int.from_bytes(buffer, 'little')
@@ -60,55 +61,66 @@ class ChatServer:
                             # msg_len is still incomplete, do not process any further
                             continue
                     elif connection.buffer and time.time() - connection.last_seen > self.disconnect_timeout:
-                        self._unnamed_connections.remove(connection)
                         # disconnect because stopped sending message mid stream
+                        connection.close()
+                        self._unnamed_connections.remove(connection)
                         continue
                     elif time.time() - connection.last_seen > self.idle_timeout:
-                        self._unnamed_connections.remove(connection)
                         # disconnect for being idle for too long
+                        connection.close()
+                        self._unnamed_connections.remove(connection)
                         continue
 
                 if len(connection.buffer) < connection.msg_len:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
                     if buffer:
                         connection.buffer += buffer
-                    elif time.time() - connection.last_seen < self.disconnect_timeout:
-                        self._unnamed_connections.remove(connection)
+                        connection.last_seen = time.time()
+                    elif time.time() - connection.last_seen > self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
+                        connection.close()
+                        self._unnamed_connections.remove(connection)
                         continue
 
                 # Process complete message
                 if len(connection.buffer) == connection.msg_len:
+                    connection.last_seen = time.time()
                     message = connection.buffer.decode("utf-8")
+
                     if message.startswith("!change"):
                         # process name change command
-                        print("User joined with name")
-                        pass
+                        new_name = message[8:].strip()
+                        connection.username = new_name
+                        print(f"{new_name} joined the room!")
+                        self._unnamed_connections.remove(connection)
+                        self._connections.append(connection)
 
                     connection.msg_len = 0
                     connection.buffer = b''
 
             # Process current open connections
-            # print("Processing open connection")
             for connection in self._connections:
                 if connection.msg_len == 0:
                     buffer = connection.connection.recv(0, 4 - len(connection.buffer))
 
                     if buffer:
                         connection.buffer += buffer
+                        connection.last_seen = time.time()
 
                         if len(connection.buffer) == 4:
-                            connection.msg_len = struct.unpack("I", connection.buffer)
+                            connection.msg_len = int.from_bytes(buffer, 'little')
                             connection.buffer = b''
                         else:
                             # msg_len is still incomplete, do not process any further
                             continue
-                    elif connection.buffer and time.time() - connection.last_seen < self.disconnect_timeout:
+                    elif connection.buffer and time.time() - connection.last_seen > self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
+                        connection.close()
                         self._connections.remove(connection)
                         continue
-                    elif time.time() - connection.last_seen < self.idle_timeout:
+                    elif time.time() - connection.last_seen > self.idle_timeout:
                         # disconnect for being idle for too long
+                        connection.close()
                         self._connections.remove(connection)
                         continue
 
@@ -116,30 +128,32 @@ class ChatServer:
                     buffer = connection.connection.recv(0, connection.msg_len - len(connection.buffer))
                     if buffer:
                         connection.buffer += buffer
-                    elif time.time() - connection.last_seen < self.disconnect_timeout:
+                        connection.last_seen = time.time()
+                    elif time.time() - connection.last_seen > self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
+                        connection.close()
                         self._connections.remove(connection)
                         continue
 
                 # Process complete message
-                if len(connection.buffer) == connection.msg_len:
+                if len(connection.buffer) == connection.msg_len and connection.msg_len > 0:
+                    connection.last_seen = time.time()
                     message = connection.buffer.decode("utf-8")
 
                     # !disconnect should be handled on the client and should just close the connection
 
                     if message.startswith("!kill"):
-                        self._host.close()
                         # process server shutdown command
+                        self._host.close()
                         return
-                    if message.startswith("!change"):
+                    elif message.startswith("!change"):
+                        # process name change command
                         new_name = message[8:].strip()
                         connection.username = new_name
-                        # process name change command
-                    if message == "!heartbeat":
-                        print("heartbeat received")
+                    elif message.startswith("!heartbeat"):
                         # process heartbeat
+                        print("heartbeat received")
                         # echo heartbeat back to client to inform that the server is still open
-                        pass
                     else:
                         # process normal message
                         for other in self._connections:
