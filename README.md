@@ -1,6 +1,6 @@
  # Chat TCP
  <div align="center">
-  <img width="100%" src="https://capsule-render.vercel.app/api?type=blur&height=280&color=0:d8dee9,100:2e3440&text=Not%20%Only%20%Kom%20De%20%Kom&fontColor=81a1c1&fontSize=50&animation=twinkling&" />
+  <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&height=300&color=timeGradient&text=Not%20%Only%20%Kom%20De%20%Kom&reversal=true&fontAlign=50&animation=twinkling&textBg=false&stroke=ffffff&strokeWidth=4&fontColor=ffffff&fontSize=0" />
 </div>
 
 <p align="center">
