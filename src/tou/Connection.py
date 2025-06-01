@@ -2,8 +2,8 @@ import socket
 import random
 import select
 import threading
-from .flow_control import *
-from .segment import Segment, SYN, ACK, RECV_BUFFER
+from .FlowControl import *
+from .Segment import Segment, SYN, ACK, RECV_BUFFER
 import time
 
 class BetterUDPSocket:
@@ -75,7 +75,7 @@ class BetterUDPSocket:
         )
 
         start_ack_time = time.time()
-        last_sent = 0 
+        last_sent = 0
 
         while True:
             current_time = time.time()
@@ -89,7 +89,7 @@ class BetterUDPSocket:
             if ready[0]:
                 data, addr = sock.recvfrom(RECV_BUFFER)
                 if addr != client_addr:
-                    continue 
+                    continue
 
                 ack_seg = Segment.unpack(data)
                 if (ack_seg.flags & ACK) and ack_seg.ack_num == y + 1:
@@ -97,8 +97,8 @@ class BetterUDPSocket:
                     self.remote_addr = client_addr
                     self.dest_port = syn_seg.src_port
                     print(f"[BetterUDPSocket] Handshake successful with {client_addr}!")
-                    result_queue.put(client_isn) 
-                    return 
+                    result_queue.put(client_isn)
+                    return
 
             # Check total timeout
             if current_time - start_ack_time > total_timeout:

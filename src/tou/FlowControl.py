@@ -1,6 +1,6 @@
 import threading
 import time
-from features.segment import Segment, ACK, FIN, MAX_PAYLOAD_SIZE, RECV_BUFFER
+from tou.Segment import Segment, ACK, FIN, MAX_PAYLOAD_SIZE, RECV_BUFFER
 
 class GoBackNSender:
     def __init__(self, sock, dest_addr, window_size=4, timeout=None):
@@ -51,7 +51,7 @@ class GoBackNSender:
             while base < total:
                 if time.time() - start_time > timeout_limit:
                     raise TimeoutError("Sending window timeout exceeded 30 seconds")
-                
+
                 while next_seq < base + self.window_size and next_seq < total:
                     self.sock.sendto(segments[next_seq].pack(), self.dest_addr)
                     if base == next_seq:

@@ -2,7 +2,7 @@ import threading
 import socket
 from datetime import datetime
 from tou.Connection import BetterUDPSocket
-from tou.segment import Segment, SYN, ACK, FIN, RECV_BUFFER, MAX_PAYLOAD_SIZE
+from tou.Segment import Segment, SYN, ACK, FIN, RECV_BUFFER, MAX_PAYLOAD_SIZE
 import queue
 import json
 import time
