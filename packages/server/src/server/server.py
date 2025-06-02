@@ -68,12 +68,12 @@ class ChatServer:
                             continue
                     elif connection.buffer and time.time() - connection.last_seen > self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
-                        connection.close()
+                        connection.connection.close()
                         self._unnamed_connections.remove(connection)
                         continue
                     elif time.time() - connection.last_seen > self.idle_timeout:
                         # disconnect for being idle for too long
-                        connection.close()
+                        connection.connection.close()
                         self._unnamed_connections.remove(connection)
                         continue
 
@@ -84,7 +84,7 @@ class ChatServer:
                         connection.last_seen = time.time()
                     elif time.time() - connection.last_seen > self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
-                        connection.close()
+                        connection.connection.close()
                         self._unnamed_connections.remove(connection)
                         continue
 
@@ -120,7 +120,7 @@ class ChatServer:
             for connection in self._connections:
                 if connection.connection.state != Connection.State.CONNECTED:
                     # process disconnection
-                    print(f"{connection.username} was disconnected")
+                    print(f"{connection.username} was disconnected by remote end")
                     self._connections.remove(connection)
                     msg = ChatServer.generate_message("SERVER", f"{connection.username} has disconnected").encode("utf-8")
                     data = len(msg).to_bytes(4, 'little') + msg
@@ -141,21 +141,16 @@ class ChatServer:
                         else:
                             # msg_len is still incomplete, do not process any further
                             continue
+                        
 
-                    elif connection.buffer and time.time() - connection.last_seen > self.disconnect_timeout:
-                        # disconnect because stopped sending message mid stream
-                        print(f"{connection.username} was disconnected")
-                        connection.close()
+                    elif time.time() - connection.last_seen > self.disconnect_timeout:
+                        # disconnect for being idle for too long
+                        print(f"{connection.username} was disconnected due to missing heartbeat")
+                        connection.connection.close()
                         self._connections.remove(connection)
                         msg = ChatServer.generate_message("SERVER", f"{connection.username} has disconnected").encode("utf-8")
                         data = len(msg).to_bytes(4, 'little') + msg
                         self.broadcast(data)
-                        continue
-
-                    elif time.time() - connection.last_seen > self.idle_timeout:
-                        # disconnect for being idle for too long
-                        connection.close()
-                        self._connections.remove(connection)
                         continue
 
                 if len(connection.buffer) < connection.msg_len:
@@ -167,8 +162,8 @@ class ChatServer:
 
                     elif time.time() - connection.last_seen > self.disconnect_timeout:
                         # disconnect because stopped sending message mid stream
-                        print(f"{connection.username} was disconnected")
-                        connection.close()
+                        print(f"{connection.username} was disconnected due to missing heartbeat")
+                        connection.connection.close()
                         self._connections.remove(connection)
                         continue
 
@@ -255,7 +250,7 @@ def main():
 
     args = parser.parse_args()
 
-    server = ChatServer(args.host, args.port, args.password, 30, 1)
+    server = ChatServer(args.host, args.port, args.password, 30, 15)
     try:
         server.start()
     except KeyboardInterrupt:

@@ -136,7 +136,6 @@ class Connection(metaclass=ABCMeta):
                 )
             self._internal_send(fin_segment.pack())
 
-        print("Connection disconnected")
         self._after_disconnect()
 
 

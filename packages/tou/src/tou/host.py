@@ -29,7 +29,7 @@ class Host:
         CLOSED = auto()
 
 
-    def __init__(self, ip_addr: str, port: int, window_size: int = 4096, resend_delay: float = 0.1, timeout: float = 1, max_connections: int = 999):
+    def __init__(self, ip_addr: str, port: int, window_size: int = 4096, resend_delay: float = 0.1, timeout: float = 10, max_connections: int = 999):
         '''Creates a host on a given ip address and port (max_connections = -1 means no limit)'''
 
         self.address = (ip_addr, port)
@@ -175,5 +175,12 @@ class Host:
         '''Used by a dispatched host connection to disconnect'''
 
         with self._queued_connections_lock:
-            self._listened_connections.remove(connection)
-            self._queued_connections.remove(connection)
+            try:
+                self._listened_connections.remove(connection)
+            except Exception:
+                pass
+
+            try:
+                self._queued_connections.remove(connection)
+            except Exception:
+                pass

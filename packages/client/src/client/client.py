@@ -14,6 +14,9 @@ class CursesChatClient:
         self.display_name = display_name
         self.connection: Optional[Connection] = None
         self.running = False
+        self.last_heartbeat_time = time.time()
+        self.waiting_for_heartbeat_response = False
+        self.last_heartbeat_sent_time = 0.0
 
         self.messages: list[str] = []
         self.lock = threading.Lock()
@@ -28,8 +31,13 @@ class CursesChatClient:
             self.connection.send(len(msg).to_bytes(4, 'little') + msg)
 
             # Start background threads
-            threading.Thread(target=self._receive_messages, daemon=True).start()
-            threading.Thread(target=self._send_heartbeat, daemon=True).start()
+            self._recv_thread = threading.Thread(target=self._receive_messages)
+            self._heartbeat_thread = threading.Thread(target=self._send_heartbeat)
+            self._heartbeat_monitor_thread = threading.Thread(target=self._monitor_heartbeat)
+
+            self._recv_thread.start()
+            self._heartbeat_thread.start()
+            self._heartbeat_monitor_thread.start()
 
             # Launch curses UI
             curses.wrapper(self._run_curses_ui)
@@ -41,41 +49,77 @@ class CursesChatClient:
 
     def stop(self):
         self.running = False
-        if self.connection:
+        if self.connection.state == Connection.State.CONNECTED:
             self.connection.close()
+        self._recv_thread.join()
+        self._heartbeat_thread.join()
+        self._heartbeat_monitor_thread.join()
+
+    def _monitor_heartbeat(self):
+        HEARTBEAT_TIMEOUT = 5  # seconds
+    
+        while self.running:
+            if self.waiting_for_heartbeat_response:
+                if time.time() - self.last_heartbeat_sent_time > HEARTBEAT_TIMEOUT:
+                    with self.lock:
+                        self.messages.append("[SYSTEM] Disconnected from server")
+                    self.stop()
+                    break
+            time.sleep(1)
 
     def _receive_messages(self):
+        buffer = b''
+
         while self.running:
             try:
-                # First read length
-                length_bytes = self.connection.recv(0, 4)
-                if not length_bytes:
+                # Non-blocking read, may return less than requested
+                chunk = self.connection.recv(0, 4096)
+                if chunk:
+                    buffer += chunk
+                else:
+                    time.sleep(0.01)
                     continue
-                length = int.from_bytes(length_bytes, 'little')
 
-                # Then read full message
-                message_bytes = self.connection.recv(0, length)
-                if not message_bytes:
-                    continue
-                message = message_bytes.decode("utf-8")
+                # Process as many full messages as possible
+                while True:
+                    if len(buffer) < 4:
+                        break  # Not enough data for length prefix
 
-                if message.strip() == "!heartbeat":
-                    continue  # Ignore heartbeat messages in UI
+                    msg_length = int.from_bytes(buffer[0:4], 'little')
+                    if len(buffer) < 4 + msg_length:
+                        break  # Wait for full message
 
-                with self.lock:
-                    self.messages.append(message)
+                    # Extract and decode message
+                    msg_bytes = buffer[4:4 + msg_length]
+                    message = msg_bytes.decode("utf-8")
+
+                    # Remove processed data from buffer
+                    buffer = buffer[4 + msg_length:]
+
+                    if message.strip() == "!heartbeat":
+                        self.last_heartbeat_time = time.time()
+                        self.waiting_for_heartbeat_response = False
+                        continue
+
+                    with self.lock:
+                        self.messages.append(message)
 
             except Exception as e:
                 with self.lock:
                     self.messages.append(f"[ERROR] {e}")
                 self.stop()
+                break
 
     def _send_heartbeat(self):
-        while self.running:
+        while self.running and self.connection.state == Connection.State.CONNECTED:
             try:
                 msg = b"!heartbeat"
                 self.connection.send(len(msg).to_bytes(4, 'little') + msg)
-                time.sleep(1)
+    
+                self.last_heartbeat_sent_time = time.time()
+                self.waiting_for_heartbeat_response = True
+    
+                time.sleep(10)
             except:
                 self.stop()
 
@@ -87,7 +131,9 @@ class CursesChatClient:
         max_y, max_x = stdscr.getmaxyx()
 
         input_win = curses.newwin(1, max_x, max_y - 1, 0)
+        input_win.nodelay(True)
         chat_win = curses.newwin(max_y - 1, max_x, 0, 0)
+        chat_win.nodelay(True)
 
         input_buffer = ""
 
@@ -108,7 +154,7 @@ class CursesChatClient:
             input_win.refresh()
 
             c = input_win.getch()
-            if c == curses.KEY_BACKSPACE or c == 127:
+            if c in (curses.KEY_BACKSPACE, 127, 8):
                 input_buffer = input_buffer[:-1]
             elif c in (curses.KEY_ENTER, 10, 13):
                 message = input_buffer.strip()
