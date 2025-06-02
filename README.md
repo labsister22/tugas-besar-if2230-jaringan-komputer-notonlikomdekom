@@ -76,11 +76,11 @@ Note: Please have python 3.11 installed
 
    a. Terminal 1:
       ```bash
-      uv run src/Server.py
+      uv run -m server
       ```
    b. Terminal 2 dan seterusnya:
       ```bash
-      uv run src/Client.py
+      uv run -m client
       ```
 ---
 

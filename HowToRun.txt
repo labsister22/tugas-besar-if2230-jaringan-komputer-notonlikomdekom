@@ -1,8 +1,0 @@
-Pastiin Run Server dulu baru client biar gak error
-
-Buka 2 Terminal:
-Terminal 1: uv run -m server
-Terminal 2: uv run -m client
-# Terminal 1: python -m packages.server.src.server.server
-# Terminal 2: python -m packages.client.src.client.client
-
