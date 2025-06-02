@@ -1,0 +1,9 @@
+[tool.uv.sources]
+tou = { workspace = true }
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[build-system]
+requires = ["uv"]
+build-backend = "uv.backend"
